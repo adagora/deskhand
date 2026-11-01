@@ -1,0 +1,50 @@
+[[repos]]
+repo = "builtin"
+
+[[repos.hooks]]
+id = "trailing-whitespace"
+args = ["--markdown-linebreak-ext=md"]
+
+[[repos.hooks]]
+id = "end-of-file-fixer"
+
+[[repos.hooks]]
+id = "check-added-large-files"
+args = ["--enforce-all"]
+
+[[repos.hooks]]
+id = "check-json"
+
+[[repos.hooks]]
+id = "check-toml"
+
+[[repos.hooks]]
+id = "check-yaml"
+args = ["--unsafe"]
+
+[[repos.hooks]]
+id = "check-merge-conflict"
+
+[[repos.hooks]]
+id = "detect-private-key"
+
+[[repos.hooks]]
+id = "check-case-conflict"
+
+[[repos.hooks]]
+id = "mixed-line-ending"
+args = ["--fix=no"]
+
+[[repos.hooks]]
+id = "check-shebang-scripts-are-executable"
+
+[[repos]]
+repo = "local"
+
+[[repos.hooks]]
+id = "unit-tests"
+name = "unit tests"
+language = "system"
+entry = "python3 -m unittest discover -s tests"
+pass_filenames = false
+always_run = true

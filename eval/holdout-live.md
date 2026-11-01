@@ -22,7 +22,7 @@ A storm warning is not an automatic refund. The staff decide those cases. Please
 
 ### change-cw-1003
 
-Booking CW-1003 is confirmed for a city bike rental from 15:00 to 18:00 today, June 10, 2026. 
+Booking CW-1003 is confirmed for a city bike rental from 15:00 to 18:00 today, June 10, 2026.
 
 To change the date of your booking, please contact the staff directly at help@citywheels.example or +48 000 000 000 for assistance.
 
@@ -47,4 +47,3 @@ Weighted miss: 0
 | change-cw-1003 | pass | booking_change | 0 |  |
 | change-cw-1001 | pass | booking_change | 0 |  |
 | age-17-ebike | pass | age_allowed | 0 |  |
-

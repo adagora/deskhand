@@ -29,5 +29,7 @@ jobs:
           python-version: ${{ matrix.python }}
       - name: Show Python
         run: python3 --version
-      - name: Unit tests
-        run: python3 -m unittest discover -s tests
+      - uses: j178/prek-action@44924fe9ef4a6f88253c4b6b1bf11c689d3ce53d # v3.1.0
+        with:
+          prek-version: "0.5.9"
+          sha256: "2fee13923018dd517c19dba032ddcae8010cadfb81bc47e742ad5e8981a3f126"
