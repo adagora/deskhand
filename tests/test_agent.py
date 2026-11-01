@@ -177,9 +177,57 @@ class AgentLoopTests(unittest.TestCase):
 
     def test_tool_loop_stops_at_max_rounds(self):
         result = run_agent("What time do you open?", AlwaysToolModel(), max_rounds=2)
-        self.assertEqual(len(result.tool_trace), 2)
+        self.assertEqual(len(result.tool_trace), 1)
         self.assertIn("staff", result.answer.lower())
         self.assertIn(STAFF_EMAIL, result.answer)
+
+    def test_last_round_offers_no_tools_and_reads_every_result(self):
+        seen = []
+
+        class Recorder:
+            def complete(self, messages, tools):
+                seen.append((len(tools), sum(m["role"] == "tool" for m in messages)))
+                if tools:
+                    return ModelTurn(
+                        content="",
+                        tool_calls=[ToolCall(id=str(len(seen)), name="search_policies", arguments={"query": "hours"})],
+                    )
+                return ModelTurn(content="We open at 08:00.")
+
+        result = run_agent("When do you open?", Recorder(), max_rounds=2, system="s")
+        self.assertEqual(seen, [(len(TOOL_SPECS), 0), (0, 1)])
+        self.assertEqual(len(result.tool_trace), 1)
+        self.assertEqual(result.answer, "We open at 08:00.")
+
+    def test_tool_exception_becomes_a_tool_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "bookings.json"
+            path.write_text(
+                json.dumps([{"id": "CW-9001", "status": "confirmed", "start": "not a date",
+                             "rental_price_eur": 10, "booking_fee_eur": 2, "deposit_eur": 50,
+                             "paid_with": "card"}]),
+                encoding="utf-8",
+            )
+            result = run_tool("calculate_refund", {"booking_id": "CW-9001"}, data_dir=Path(tmp))
+            self.assertIn("ValueError", result["error"])
+
+            class OneTool:
+                calls = 0
+
+                def complete(self, messages, tools):
+                    self.calls += 1
+                    if self.calls == 1:
+                        return ModelTurn(
+                            content="",
+                            tool_calls=[ToolCall(id="1", name="calculate_refund", arguments={"booking_id": "CW-9001"})],
+                        )
+                    self.last_tool = json.loads(messages[-1]["content"])
+                    return ModelTurn(content="")
+
+            model = OneTool()
+            answer = run_agent("Cancel CW-9001", model, data_dir=Path(tmp), system="s")
+            self.assertIn("error", model.last_tool)
+            self.assertIn(STAFF_EMAIL, answer.answer)
 
     def test_tool_specs_and_prompt(self):
         self.assertEqual(

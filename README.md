@@ -54,13 +54,17 @@ With no arguments, the command prints a short agent triage and exits 0. `capabil
 
 ## Statechart
 
+Two TLA+ models in `verify` cover the stateful parts of the desk. CI runs TLC on both, with tla2tools 1.8.0 pinned by its checksum, and runs `python3 verify/check_desk.py`.
+
+### One booking at the desk
+
 `verify/Desk.tla` is one booking at the desk. TLC checks every order of the clock, the rental, a cancel question, and a change question. The pstack 0.15.36 `/statechart` skill drew the chart from that model. Pele rendered `verify/chart.svg`. The Mermaid source is `verify/chart.mmd`, and the run notes are `verify/report.md`.
 
 Two rules hold in all 320 states TLC reached. A full quote was given only for a confirmed booking 48 hours or more before the start. A half quote was given only from 24 hours up to 48. A deposit-only quote was given only under 24 hours. A quote of nothing was given only when the booking was not confirmed. A change was allowed while the booking was confirmed and at least 24 hours remained, and it was refused otherwise.
 
-The chart draws 15 states and 18 arrows. It leaves out the clock moving, the rental starting, the rental ending, and the booking being marked cancelled. Those steps do not change the words on the state by themselves. Marking a booking cancelled after both answers are already in stays on the same label, so that arrow is not drawn either.
+The chart draws 15 states and 18 arrows. It leaves out the clock moving, the rental starting, the rental ending, and the booking being marked cancelled. Those steps do not change the words on the state by themselves.
 
-`python3 verify/check_desk.py` checks the euro amounts for every status and every band, including that the 2 EUR booking fee stays out of the refund. The model leaves out prices, vouchers, the agent loop, and storm wording. No rule breaks, so the chart has no red state.
+`python3 verify/check_desk.py` and `tests/test_decision_table.py` check the euro amounts and the change window for every status and every band against `refunds.py` and `schedule.py`, including that the 2 EUR booking fee stays out of the refund.
 
 ![A CityWheels booking at the desk](verify/chart.svg)
 
@@ -124,3 +128,45 @@ stateDiagram-v2
   class s13 teal
   class s14 teal
 ```
+
+### One question through the agent loop
+
+`verify/AgentLoop.tla` is the tool loop in `citywheels/agent.py` and `run_tool` in `citywheels/tools.py`: model rounds, tool calls, tool errors, the round limit, and the staff message. The last round offers the model no tools, so every tool result is read before the run ends. A tool that raises returns an error result to the model.
+
+With 3 rounds and up to 2 tool calls in a turn, TLC reached 34 states. Every rule holds: the model reads every tool result before its next call, the loop never goes past the limit, every finished run has an answer, no run stops with an exception, no tool result is thrown away, and every run ends. The chart draws 7 states and 11 arrows. It hides the single tool returning or failing. The Mermaid source is `verify/agentloop.chart.mmd`, rendered with mermaid-cli to `verify/agentloop.chart.svg`, and the run notes are `verify/agentloop.report.md`.
+
+![One question through the CityWheels agent loop](verify/agentloop.chart.svg)
+
+```mermaid
+stateDiagram-v2
+  s0: Waiting for the model
+  s1: Model reads results after round 1
+  s2: The model answered
+  s3: Staff message
+  s4: Running tools in round 1
+  s5: Model reads results after round 2
+  s6: Running tools in round 2
+  [*] --> s0
+  s0 --> s2: the model writes an answer
+  s0 --> s3: the model writes nothing
+  s0 --> s4: the model asks for tools
+  s4 --> s1: every tool returned
+  s1 --> s2: the model writes an answer
+  s1 --> s3: the model writes nothing
+  s1 --> s6: the model asks for tools
+  s6 --> s5: every tool returned
+  s5 --> s2: the model writes an answer
+  s5 --> s3: the model writes nothing
+  s5 --> s3: the model asks for tools in the last round
+  class s0 blue
+  class s1 blue
+  class s2 teal
+  class s3 orange
+  class s4 blue
+  class s5 blue
+  class s6 blue
+```
+
+### What the models leave out
+
+Prices, vouchers, storm wording, policy search results, and what the model writes. The agent model counts tool results but not their content, and it does not model provider errors from `openai_model.py` or `gemini_model.py`.

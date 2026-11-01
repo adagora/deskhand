@@ -38,3 +38,9 @@ The same promise is the TLA+ model in `verify/Desk.tla`, with the chart words in
 The message names the status and the band. `far` is 48 hours out, `mid` is exactly 24 hours out, and `near` is one second under 24 hours. Open `refund_for_booking` or `change_allowed` at that case. If you meant the new behavior, change the promise in this skill and in `verify/Desk.tla` together, then run the check again.
 
 A failure you have not seen on a broken copy proves nothing. Before you trust a green run, break `refund_for_booking` so a confirmed booking 48 hours out adds `booking_fee_eur` into `refund_eur`, run the command, and see it exit 1. Put the function back and see exit 0. Do not leave the break in the tree.
+
+## The agent loop
+
+`verify/AgentLoop.tla` with `verify/AgentLoop.cfg` covers `citywheels/agent.py`, function `run_agent`, and `citywheels/tools.py`, function `run_tool`. Use it when a change touches the round limit, the tool calls, or the staff message. Last confirmed against the agent loop at the commit that fixed the tool exception and the last round, on top of `54327ec`.
+
+The `verify` job in `.github/workflows/ci.yml` runs TLC on it with tla2tools 1.8.0, pinned by its checksum. Read a failure with the `/statechart` skill. Every rule, NoCrash and NoToolResultThrownAway included, is in `verify/AgentLoop.cfg` and holds.

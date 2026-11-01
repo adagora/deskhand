@@ -1,0 +1,30 @@
+---
+title: "One question through the CityWheels agent loop"
+---
+stateDiagram-v2
+  s0: Waiting for the model
+  s1: Model reads results after round 1
+  s2: The model answered
+  s3: Staff message
+  s4: Running tools in round 1
+  s5: Model reads results after round 2
+  s6: Running tools in round 2
+  [*] --> s0
+  s0 --> s2: the model writes an answer
+  s0 --> s3: the model writes nothing
+  s0 --> s4: the model asks for tools
+  s4 --> s1: every tool returned
+  s1 --> s2: the model writes an answer
+  s1 --> s3: the model writes nothing
+  s1 --> s6: the model asks for tools
+  s6 --> s5: every tool returned
+  s5 --> s2: the model writes an answer
+  s5 --> s3: the model writes nothing
+  s5 --> s3: the model asks for tools in the last round
+  class s0 blue
+  class s1 blue
+  class s2 teal
+  class s3 orange
+  class s4 blue
+  class s5 blue
+  class s6 blue

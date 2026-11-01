@@ -35,11 +35,14 @@ def run_agent(
         {"role": "user", "content": question},
     ]
     trace: list[dict] = []
-    for _ in range(max_rounds):
-        turn: ModelTurn = model.complete(messages, TOOL_SPECS)
+    for round_number in range(max_rounds):
+        last_round = round_number == max_rounds - 1
+        turn: ModelTurn = model.complete(messages, [] if last_round else TOOL_SPECS)
         if not turn.tool_calls:
             answer = (turn.content or "").strip() or contact_staff_message()
             return AgentResult(answer=answer, tool_trace=trace)
+        if last_round:
+            break
         messages.append(
             {
                 "role": "assistant",

@@ -25,8 +25,9 @@ class OpenAIModel:
             "model": self.model,
             "temperature": 0,
             "messages": [_to_openai_message(message) for message in messages],
-            "tools": [_to_openai_tool(tool) for tool in tools],
         }
+        if tools:
+            payload["tools"] = [_to_openai_tool(tool) for tool in tools]
         request = urllib.request.Request(
             self.base_url + "/chat/completions",
             data=json.dumps(payload).encode("utf-8"),

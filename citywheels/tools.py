@@ -91,6 +91,13 @@ def run_tool(
         args = _arguments(arguments)
     except (json.JSONDecodeError, TypeError, ValueError) as exc:
         return {"error": f"Tool arguments were not valid JSON: {exc}"}
+    try:
+        return _dispatch(name, args, data_dir=data_dir, now=now)
+    except Exception as exc:
+        return {"error": f"Tool {name} failed: {type(exc).__name__}: {exc}"}
+
+
+def _dispatch(name: str, args: dict, *, data_dir: Path | None, now: datetime | None) -> dict:
     if name == "search_policies":
         return search_policies(str(args.get("query", "")), data_dir=data_dir)
     if name == "get_booking":

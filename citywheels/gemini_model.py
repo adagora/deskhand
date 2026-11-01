@@ -24,9 +24,10 @@ class GeminiModel:
         payload = {
             "systemInstruction": {"parts": [{"text": system}]},
             "contents": contents,
-            "tools": [{"functionDeclarations": [_to_gemini_tool(tool) for tool in tools]}],
             "generationConfig": {"temperature": 0},
         }
+        if tools:
+            payload["tools"] = [{"functionDeclarations": [_to_gemini_tool(tool) for tool in tools]}]
         url = (
             "https://generativelanguage.googleapis.com/v1beta/models/"
             f"{self.model}:generateContent"
