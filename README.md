@@ -54,7 +54,7 @@ With no arguments, the command prints a short agent triage and exits 0. `capabil
 
 ## Statechart
 
-Two TLA+ models in `verify` cover the stateful parts of the desk. CI runs TLC on both, with tla2tools 1.8.0 pinned by its checksum, and runs `python3 verify/check_desk.py`.
+Two TLA+ models in `verify` cover the stateful parts of the desk. Run TLC on both with tla2tools 1.8.0, and run `python3 verify/check_desk.py`. CI does not run them yet.
 
 ### One booking at the desk
 
