@@ -1,0 +1,257 @@
+[
+  {
+    "id": "saturday-hours",
+    "question": "What time do you open on Saturday?",
+    "kind": "fact",
+    "example": true,
+    "tool": "search_policies",
+    "expect_all": [
+      "08:00–20:00"
+    ],
+    "forbid": [
+      "09:00–17:00",
+      "Canberra"
+    ],
+    "intent": "hours",
+    "holdout": false,
+    "costly_forbid": [
+      "09:00–17:00"
+    ]
+  },
+  {
+    "id": "ebike-day",
+    "question": "How much is an e-bike for a whole day?",
+    "kind": "fact",
+    "example": true,
+    "tool": "search_policies",
+    "expect_all": [
+      "40 EUR",
+      "day"
+    ],
+    "forbid": [
+      "Canberra"
+    ],
+    "intent": "price",
+    "holdout": false
+  },
+  {
+    "id": "cancel-cw-1002",
+    "question": "I want to cancel booking CW-1002. How much will I get back?",
+    "kind": "refund",
+    "example": true,
+    "booking_id": "CW-1002",
+    "expect_amount": 340,
+    "tool": "calculate_refund",
+    "intent": "refund_confirmed",
+    "holdout": false
+  },
+  {
+    "id": "age-14-ebike",
+    "question": "Can my 14-year-old rent an e-bike?",
+    "kind": "fact",
+    "example": true,
+    "tool": "search_policies",
+    "expect_all": [
+      "No.",
+      "Electric bikes: from 16 years old."
+    ],
+    "forbid": [
+      "Canberra"
+    ],
+    "intent": "age_denied",
+    "holdout": false,
+    "costly_expect": [
+      "No.",
+      "Electric bikes: from 16 years old."
+    ]
+  },
+  {
+    "id": "australia",
+    "question": "What is the capital of Australia?",
+    "kind": "refuse",
+    "example": true,
+    "expect_no_tools": true,
+    "expect_all": [
+      "staff",
+      "help@citywheels.example"
+    ],
+    "forbid": [
+      "Canberra",
+      "canberra"
+    ],
+    "intent": "refuse",
+    "holdout": false
+  },
+  {
+    "id": "cancel-cw-1001",
+    "question": "I want to cancel booking CW-1001. How much will I get back?",
+    "kind": "refund",
+    "booking_id": "CW-1001",
+    "expect_amount": 90,
+    "tool": "calculate_refund",
+    "intent": "refund_confirmed",
+    "holdout": false
+  },
+  {
+    "id": "cancel-cw-1004",
+    "question": "I want to cancel booking CW-1004. How much will I get back?",
+    "kind": "refund",
+    "booking_id": "CW-1004",
+    "expect_amount": 73,
+    "tool": "calculate_refund",
+    "intent": "refund_confirmed",
+    "holdout": false
+  },
+  {
+    "id": "tokyo",
+    "question": "What is the population of Tokyo?",
+    "kind": "refuse",
+    "expect_no_tools": true,
+    "expect_all": [
+      "staff",
+      "help@citywheels.example"
+    ],
+    "forbid": [
+      "million",
+      "Canberra"
+    ],
+    "intent": "refuse",
+    "holdout": false
+  },
+  {
+    "id": "where",
+    "question": "Where are you?",
+    "kind": "fact",
+    "tool": "search_policies",
+    "expect_all": [
+      "Riverside Park",
+      "Park Nadrzeczny"
+    ],
+    "intent": "location",
+    "holdout": false
+  },
+  {
+    "id": "cancel-cw-1008",
+    "question": "I want to cancel booking CW-1008. How much will I get back?",
+    "kind": "refund",
+    "booking_id": "CW-1008",
+    "expect_amount": 0,
+    "tool": "calculate_refund",
+    "intent": "refund_blocked",
+    "holdout": false
+  },
+  {
+    "id": "missing-cw-9999",
+    "question": "I want to cancel booking CW-9999. How much will I get back?",
+    "kind": "not_found",
+    "booking_id": "CW-9999",
+    "tool": "calculate_refund",
+    "expect_all": [
+      "was not found"
+    ],
+    "forbid": [
+      "Traceback",
+      "Canberra"
+    ],
+    "intent": "booking_missing",
+    "holdout": false
+  },
+  {
+    "id": "kids-deposit",
+    "question": "How much is the deposit for a kids bike?",
+    "kind": "fact",
+    "tool": "search_policies",
+    "expect_all": [
+      "30 EUR"
+    ],
+    "intent": "deposit",
+    "holdout": false,
+    "costly_expect": [
+      "30 EUR"
+    ]
+  },
+  {
+    "id": "late-return",
+    "question": "What happens if I return a bike late?",
+    "kind": "fact",
+    "tool": "search_policies",
+    "expect_all": [
+      "1.5"
+    ],
+    "intent": "late_fee",
+    "holdout": false
+  },
+  {
+    "id": "cancel-cw-1007",
+    "question": "I want to cancel booking CW-1007. How much will I get back?",
+    "kind": "refund",
+    "booking_id": "CW-1007",
+    "expect_amount": 186,
+    "tool": "calculate_refund",
+    "intent": "refund_confirmed",
+    "holdout": false
+  },
+  {
+    "id": "helmet",
+    "question": "Do I have to wear a helmet?",
+    "kind": "fact",
+    "tool": "search_policies",
+    "expect_all": [
+      "under 16"
+    ],
+    "intent": "safety",
+    "holdout": false
+  },
+  {
+    "id": "ocean-poem",
+    "question": "Write a poem about the ocean.",
+    "kind": "refuse",
+    "expect_no_tools": true,
+    "expect_all": [
+      "staff",
+      "help@citywheels.example"
+    ],
+    "forbid": [
+      "Canberra"
+    ],
+    "intent": "refuse",
+    "holdout": false
+  },
+  {
+    "id": "storm-cw-1001",
+    "question": "A storm warning was issued for the day of booking CW-1001. Do I automatically get a full refund?",
+    "kind": "fact",
+    "intent": "weather",
+    "holdout": true,
+    "tool": "search_policies"
+  },
+  {
+    "id": "change-cw-1003",
+    "question": "Can I change the date of booking CW-1003?",
+    "kind": "fact",
+    "intent": "booking_change",
+    "holdout": true,
+    "booking_id": "CW-1003",
+    "tool": "get_booking"
+  },
+  {
+    "id": "change-cw-1001",
+    "question": "Can I change the bike type of booking CW-1001?",
+    "kind": "fact",
+    "intent": "booking_change",
+    "holdout": true,
+    "booking_id": "CW-1001",
+    "tool": "get_booking"
+  },
+  {
+    "id": "age-17-ebike",
+    "question": "Can my 17-year-old rent an e-bike?",
+    "kind": "fact",
+    "intent": "age_allowed",
+    "holdout": true,
+    "tool": "search_policies",
+    "expect_all": [
+      "16"
+    ]
+  }
+]

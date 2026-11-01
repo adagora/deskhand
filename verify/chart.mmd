@@ -1,0 +1,61 @@
+---
+title: "A CityWheels booking at the desk"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: waiting
+    lg1: quoted
+    lg2: blocked
+  }
+  class lg0 blue
+  class lg1 teal
+  class lg2 orange
+  s0: No quote yet
+  s1: Full refund quoted
+  s2: No quote yet, and a change was allowed
+  s3: Nothing refunded
+  s4: Full refund quoted, and a change was allowed
+  s5: Half refund quoted
+  s6: No quote yet, and a change was refused
+  s7: Nothing refunded, and a change was refused
+  s8: Nothing refunded, and a change was allowed
+  s9: Deposit only quoted
+  s10: Full refund quoted, and a change was refused
+  s11: Half refund quoted, and a change was allowed
+  s12: Deposit only quoted, and a change was refused
+  s13: Deposit only quoted, and a change was allowed
+  s14: Half refund quoted, and a change was refused
+  [*] --> s0
+  s0 --> s1: you ask to cancel, and the quote is the full rental plus the deposit
+  s0 --> s2: you ask to change the booking
+  s1 --> s4: you ask to change the booking
+  s2 --> s4: you ask to cancel, and the quote is the full rental plus the deposit
+  s0 --> s3: you ask to cancel, and nothing is refunded
+  s0 --> s6: you ask to change the booking
+  s0 --> s5: you ask to cancel, and the quote is half the rental plus the deposit
+  s3 --> s7: you ask to change the booking
+  s1 --> s10: you ask to change the booking
+  s5 --> s11: you ask to change the booking
+  s6 --> s7: you ask to cancel, and nothing is refunded
+  s2 --> s8: you ask to cancel, and nothing is refunded
+  s2 --> s11: you ask to cancel, and the quote is half the rental plus the deposit
+  s0 --> s9: you ask to cancel, and the quote is the deposit only
+  s9 --> s12: you ask to change the booking
+  s5 --> s14: you ask to change the booking
+  s6 --> s12: you ask to cancel, and the quote is the deposit only
+  s2 --> s13: you ask to cancel, and the quote is the deposit only
+  class s0 blue
+  class s1 teal
+  class s2 blue
+  class s3 orange
+  class s4 teal
+  class s5 teal
+  class s6 blue
+  class s7 orange
+  class s8 orange
+  class s9 teal
+  class s10 teal
+  class s11 teal
+  class s12 teal
+  class s13 teal
+  class s14 teal
