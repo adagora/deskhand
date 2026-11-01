@@ -91,7 +91,7 @@ cd help-desk-agent
 python3 -m citywheels --version
 ```
 
-`--version` prints `1`. That is the output contract, not a packaging version. `citywheels.__version__` is `1.0.0`. The tag `v1.0.0` points at the same commit as `main`.
+`--version` prints `1`. That is the output contract, not a packaging version. `citywheels.__version__` is `1.0.0`. Tag `v1.0.0` is the release before this README. `main` is the commit you are reading.
 
 ```sh
 git clone --branch v1.0.0 https://github.com/adagora/help-desk-agent.git
