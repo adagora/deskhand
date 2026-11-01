@@ -33,3 +33,30 @@ jobs:
         with:
           prek-version: "0.5.9"
           sha256: "2fee13923018dd517c19dba032ddcae8010cadfb81bc47e742ad5e8981a3f126"
+
+  verify:
+    name: models
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Install tla2tools 1.8.0
+        # Release sha1 551796d155f630b9c36631f3c94afe8f410e0f92, TLC 2026.10.30.154139.
+        run: |
+          curl -fsSL -o tla2tools.jar https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar
+          echo "011267fca25d0752cf18894dd585cd28b96960c112ea8a20b823ea770e7e10cd  tla2tools.jar" | sha256sum -c -
+      - name: Desk model
+        working-directory: verify
+        run: java -XX:+UseParallelGC -jar "$GITHUB_WORKSPACE/tla2tools.jar" -workers 1 -config Desk.cfg -metadir "$RUNNER_TEMP/tlc-desk" Desk.tla
+      - name: Agent loop model
+        working-directory: verify
+        run: java -XX:+UseParallelGC -jar "$GITHUB_WORKSPACE/tla2tools.jar" -workers 1 -config AgentLoop.cfg -metadir "$RUNNER_TEMP/tlc-agentloop" AgentLoop.tla
+      - name: Desk amounts
+        run: python3 verify/check_desk.py
