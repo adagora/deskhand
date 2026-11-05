@@ -43,4 +43,4 @@ A failure you have not seen on a broken copy proves nothing. Before you trust a 
 
 `verify/AgentLoop.tla` with `verify/AgentLoop.cfg` covers `citywheels/agent.py`, function `run_agent`, and `citywheels/tools.py`, function `run_tool`. Use it when a change touches the round limit, the tool calls, or the staff message. Last confirmed against the agent loop at the commit that fixed the tool exception and the last round, on top of `54327ec`.
 
-The `verify` job in `.github/workflows/ci.yml` runs TLC on it with tla2tools 1.8.0, pinned by its checksum. The same job runs TLC on `verify/Desk.tla` and `python3 verify/check_desk.py`. Read a failure with the `/statechart` skill. Every rule, NoCrash and NoToolResultThrownAway included, is in `verify/AgentLoop.cfg` and holds.
+The `verify` job in `.github/workflows/ci.yml` runs TLC on it with tla2tools 1.7.4, pinned by its checksum. The same job runs TLC on `verify/Desk.tla` and `python3 verify/check_desk.py`. Read a failure with the `/statechart` skill. Every rule, NoCrash and NoToolResultThrownAway included, is in `verify/AgentLoop.cfg` and holds.

@@ -317,7 +317,7 @@ A change is allowed only while the booking is `confirmed` and at least 24 hours 
 
 ## Models
 
-Two TLA+ models in `verify` cover the parts that have state. Run TLC on both with tla2tools 1.8.0, and run `python3 verify/check_desk.py`. The `verify` job in `.github/workflows/ci.yml` does that. The jar is pinned by its sha256. The release sha1 is `551796d155f630b9c36631f3c94afe8f410e0f92`.
+Two TLA+ models in `verify` cover the parts that have state. Run TLC on both with tla2tools 1.7.4, and run `python3 verify/check_desk.py`. The `verify` job in `.github/workflows/ci.yml` does that. The jar is pinned by its sha256. The release sha1 is `551796d155f630b9c36631f3c94afe8f410e0f92`.
 
 The model bound is smaller than the program. `verify/AgentLoop.cfg` sets `MaxRounds = 3` and `MaxCalls = 2`. The program's `MAX_ROUNDS` is 6.
 
@@ -359,7 +359,7 @@ File checks and the unit tests also run through [prek](https://github.com/j178/p
 prek run --all-files
 ```
 
-`.github/workflows/ci.yml` runs that gate on Python 3.11, 3.12, 3.13, and 3.14. A second job runs the two TLC models and `verify/check_desk.py` on Java 21 with tla2tools 1.8.0. A third job runs the workflow tests on Python 3.13.
+`.github/workflows/ci.yml` runs that gate on Python 3.11, 3.12, 3.13, and 3.14. A second job runs the two TLC models and `verify/check_desk.py` on Java 21 with tla2tools 1.7.4. A third job runs the workflow tests on Python 3.13.
 
 To run TLC yourself, from `verify/`:
 
