@@ -85,6 +85,10 @@ Use this when you want the quote to be the same on every run, and when you want 
 
 ## Operator cockpit
 
+![The Deskhand cockpit: a reviewer approves a refund, replays the decision from the log, then walks through cases, conversations, authority, rules, quality and health, and switches to the light theme.](docs/media/deskhand-cockpit.gif)
+
+The recording runs on a demo stack: a local Temporal server, the Auditline proxy, a scripted model and the made-up CityWheels data. It shows no real customer.
+
 `cockpit/` is one page for the person who runs the cases: what needs a decision, what happened in each case, who may act without a person, how the agent did in evaluation and whether the parts work. It approves or rejects a refund, closes an exception and revokes a grant through the same gateway as the command line. See `docs/cockpit.md`.
 
 ## Cancellation workflow
