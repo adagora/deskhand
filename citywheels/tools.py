@@ -56,7 +56,15 @@ TOOL_SPECS = [
                 "booking_id": {
                     "type": "string",
                     "description": "Booking id such as CW-1002.",
-                }
+                },
+                "at": {
+                    "type": "string",
+                    "description": (
+                        "Only for a what-if question about a later time: ISO 8601 date and time "
+                        "with offset, such as 2026-06-11T09:00:00+02:00. Leave it out to price "
+                        "cancelling now. It cannot be earlier than now."
+                    ),
+                },
             },
             "required": ["booking_id"],
             "additionalProperties": False,
@@ -99,6 +107,17 @@ def _arguments(arguments) -> dict:
     raise TypeError("Tool arguments must be an object or a JSON string")
 
 
+def _moment(value) -> datetime | None:
+    if value is None or value == "":
+        return None
+    if not isinstance(value, str):
+        raise ValueError("at must be an ISO 8601 date and time such as 2026-06-11T09:00:00+02:00")
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        raise ValueError("at must be an ISO 8601 date and time such as 2026-06-11T09:00:00+02:00") from None
+
+
 def run_tool(
     name: str,
     arguments,
@@ -126,6 +145,7 @@ def _dispatch(name: str, args: dict, *, data_dir: Path | None, now: datetime | N
             str(args.get("booking_id", "")),
             data_dir=data_dir,
             now=now,
+            at=_moment(args.get("at")),
         )
     if name == "request_cancellation":
         return request_cancellation(str(args.get("booking_id", "")), data_dir=data_dir)

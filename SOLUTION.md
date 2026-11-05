@@ -72,4 +72,4 @@ Opening hours in the fake model always use June 2026, even when a test passes an
 
 Run the same 16 questions through `gpt-4o-mini` and keep the failures in `eval/results.md`. Where the live model invents a figure or answers an off-topic question, change the prompt and run the set again.
 
-If a customer can ask "what if I cancel tomorrow", extend `calculate_refund`'s tool arguments with an explicit time. Today only the caller of `run_agent` can pass `now`. The model cannot.
+`calculate_refund` has an optional `at` for a what-if question about a later time. It cannot be earlier than now. Only the caller of `run_agent` can pass `now`; the model cannot move the clock itself.

@@ -404,7 +404,7 @@ The fake model is a script. It covers the eval questions and the same shapes, su
 
 Opening hours in the fake model use June 2026 even when a test passes another `now` into `run_agent`. Refund math uses that argument.
 
-The customer cannot ask "what if I cancel tomorrow". `calculate_refund` has no time argument. Only the caller of `run_agent` can pass `now`.
+`calculate_refund` takes an optional `at` for a what-if question such as "what if I cancel tomorrow at 9:00". It prices that time, adds `as_of` to the result, and rejects a time earlier than now. Without `at` the quote is the one for now. Only the caller of `run_agent` can move the clock itself, and `request_cancellation` and `orchestration/` never use `at`. The fake model understands only "tomorrow at H:MM".
 
 TLC checked 3 rounds and 2 calls, not the program's 6 rounds. It does not check provider HTTP errors.
 

@@ -4,7 +4,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -131,6 +131,46 @@ class AgentLoopTests(unittest.TestCase):
         later = run_agent(question, FakeModel(), now=FIXED_NOW + timedelta(seconds=1))
         self.assertIn("186 EUR", at_fixed.answer)
         self.assertIn("168 EUR", later.answer)
+
+    def test_a_question_about_what_cancelling_would_do_requests_nothing(self):
+        result = run_agent("I paid CW-1004 with a voucher. What happens if I cancel it?", FakeModel())
+        self.assertEqual([step["name"] for step in result.tool_trace], ["calculate_refund"])
+        self.assertEqual(result.write_intents, [])
+        self.assertIn("voucher", result.answer)
+
+    def test_a_clear_request_still_names_the_cancellation(self):
+        result = run_agent("Please cancel CW-1001 right now for me.", FakeModel())
+        self.assertEqual(result.write_intents, [{"action": "cancel-refund", "booking_id": "CW-1001"}])
+
+    def test_a_what_if_time_prices_that_time_and_says_which(self):
+        result = run_agent(
+            "What would I get back for CW-1002 if I cancel tomorrow at 9:00?", FakeModel()
+        )
+        step = result.tool_trace[0]
+        self.assertEqual(step["arguments"]["at"], "2026-06-11T09:00:00+02:00")
+        self.assertEqual(step["result"]["refund_eur"], 300)
+        self.assertEqual(step["result"]["as_of"], "2026-06-11T09:00:00+02:00")
+        self.assertIn("300 EUR", result.answer)
+        self.assertIn("2026-06-11 09:00", result.answer)
+
+    def test_without_a_time_the_quote_stays_the_one_for_now(self):
+        quote = calculate_refund("CW-1002")
+        self.assertEqual(quote["refund_eur"], 340)
+        self.assertNotIn("as_of", quote)
+
+    def test_a_what_if_time_cannot_be_earlier_than_now(self):
+        earlier = datetime.fromisoformat("2026-06-09T09:00:00+02:00")
+        quote = calculate_refund("CW-1002", at=earlier)
+        self.assertIsNone(quote["refund_eur"])
+        self.assertIn("earlier than now", quote["error"])
+
+    def test_a_what_if_time_without_an_offset_is_shop_time(self):
+        quote = calculate_refund("CW-1002", at=datetime.fromisoformat("2026-06-11T09:00:00"))
+        self.assertEqual(quote["refund_eur"], 300)
+
+    def test_a_bad_time_comes_back_as_a_tool_error_the_model_can_read(self):
+        result = run_tool("calculate_refund", {"booking_id": "CW-1002", "at": "tomorrow"})
+        self.assertIn("ISO 8601", result["error"])
 
     def test_unknown_booking_does_not_raise(self):
         result = run_agent(

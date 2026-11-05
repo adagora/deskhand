@@ -7,7 +7,7 @@ It does not compute refunds and it does not answer from general knowledge.
 import json
 import re
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from citywheels.clock import shop_now
 from citywheels.messages import STAFF_EMAIL, STAFF_PHONE, booking_not_found_message, contact_staff_message
@@ -80,6 +80,8 @@ _HINT_WORDS = {
 _HINT_PHRASES = ("where are you", "where is the shop", "child seat", "opening hours")
 _REFUND_WORDS = ("cancel", "refund", "money back", "get back", "how much will")
 _CANCEL_NOW = re.compile(r"\b(please cancel|cancel it|cancel my booking|go ahead and cancel)\b", re.IGNORECASE)
+_HYPOTHETICAL = re.compile(r"\b(what happens if|what if|if i|would i|should i)\b", re.IGNORECASE)
+_TOMORROW_AT = re.compile(r"\btomorrow at (\d{1,2})(?::(\d{2}))?\b", re.IGNORECASE)
 
 
 def _user_question(messages: list[dict]) -> str:
@@ -108,6 +110,17 @@ def _is_weather(question: str) -> bool:
     return "storm" in lowered or "weather" in lowered
 
 
+def _what_if_time(question: str) -> str | None:
+    match = _TOMORROW_AT.search(question)
+    if not match:
+        return None
+    hour, minute = int(match.group(1)), int(match.group(2) or 0)
+    if hour > 23 or minute > 59:
+        return None
+    moment = shop_now() + timedelta(days=1)
+    return moment.replace(hour=hour, minute=minute, second=0, microsecond=0).isoformat()
+
+
 def _decide(question: str) -> list[tuple[str, dict]] | None:
     if not on_topic(question):
         return None
@@ -121,13 +134,15 @@ def _decide(question: str) -> list[tuple[str, dict]] | None:
             ("search_policies", {"query": "changing a booking dates or bike type"}),
         ]
     lowered = question.lower()
-    if booking_id and _CANCEL_NOW.search(question):
+    if booking_id and _CANCEL_NOW.search(question) and not _HYPOTHETICAL.search(question):
         return [
             ("calculate_refund", {"booking_id": booking_id}),
             ("request_cancellation", {"booking_id": booking_id}),
         ]
     if booking_id and any(word in lowered for word in _REFUND_WORDS):
-        return [("calculate_refund", {"booking_id": booking_id})]
+        at = _what_if_time(question)
+        arguments = {"booking_id": booking_id, **({"at": at} if at else {})}
+        return [("calculate_refund", arguments)]
     if booking_id:
         return [("get_booking", {"booking_id": booking_id})]
     return [("search_policies", {"query": question})]
@@ -375,8 +390,11 @@ def format_refund(payload: dict) -> str:
             "Nothing is refunded, including the deposit. "
             f"The refund is {payload['refund_eur']} EUR."
         )
+    when = "now"
+    if payload.get("as_of"):
+        when = "on " + datetime.fromisoformat(payload["as_of"]).strftime("%Y-%m-%d %H:%M") + " shop time"
     return (
-        f"If you cancel booking {payload['id']} now, you get {payload['refund_eur']} EUR back. "
+        f"If you cancel booking {payload['id']} {when}, you get {payload['refund_eur']} EUR back. "
         f"That is {payload['rental_refund_eur']} EUR of the rental price "
         f"plus the {payload['deposit_refund_eur']} EUR deposit. "
         f"{payload['booking_fee_note']} {payload['channel_detail']}"
