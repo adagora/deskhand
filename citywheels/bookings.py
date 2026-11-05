@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from typing import Protocol
 
 from citywheels.paths import default_data_dir
 
@@ -13,8 +14,15 @@ def load_bookings(data_dir: Path | None = None) -> list[dict]:
     return data
 
 
-def get_booking(booking_id: str, data_dir: Path | None = None) -> dict:
-    """Return one stored booking, or a not-found result. Never raises for an unknown id."""
+class BookingView(Protocol):
+    def visible(self, record: dict) -> dict | None: ...
+
+
+def get_booking(booking_id: str, data_dir: Path | None = None, view: BookingView | None = None) -> dict:
+    """Return one stored booking, or a not-found result. Never raises for an unknown id.
+
+    A view decides what the asking customer may see. A booking the view hides looks like an unknown id.
+    """
     normalized = str(booking_id or "").strip().upper()
     if not normalized:
         return {
@@ -25,7 +33,10 @@ def get_booking(booking_id: str, data_dir: Path | None = None) -> dict:
     for booking in load_bookings(data_dir):
         stored_id = str(booking.get("id", "")).upper()
         if stored_id == normalized:
-            return {"found": True, "booking": booking}
+            shown = booking if view is None else view.visible(booking)
+            if shown is None:
+                break
+            return {"found": True, "booking": shown}
     return {
         "found": False,
         "id": normalized,

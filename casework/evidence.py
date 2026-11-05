@@ -34,13 +34,12 @@ def refund_rule_inputs(proposal: Proposal, booking: Booking) -> dict:
     start = datetime.fromisoformat(booking.starts_at)
     business_at = datetime.fromisoformat(proposal.business_at)
     return {
-        "rentalPrice": booking.rental_minor / 100,
-        "bookingFee": booking.booking_fee_minor / 100,
-        "deposit": booking.deposit_minor / 100,
+        "rentalMinor": booking.rental_minor,
+        "bookingFeeMinor": booking.booking_fee_minor,
+        "depositMinor": booking.deposit_minor,
         "hoursBefore": (start - business_at).total_seconds() / 3600,
         "cancellable": booking.status == "confirmed",
         "paidWithVoucher": booking.payment_kind == "voucher",
-        "stormWarning": False,
     }
 
 
@@ -68,7 +67,7 @@ class AuditCli:
         action = _proposed_action(reply.get("outputs") or [])
         if reply.get("status") != "completed" or action is None:
             raise Refusal("rule_disagreement")
-        if int(Decimal(str(action["payload"])) * 100) != proposal.amount_minor:
+        if (Decimal(str(action["payload"])) * 100).to_integral_value() != proposal.amount_minor:
             raise Refusal("rule_disagreement")
         return DecisionRef(id=reply["decision"], action=action["action"])
 

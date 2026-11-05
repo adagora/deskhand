@@ -2,7 +2,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from citywheels.bookings import get_booking
+from citywheels.bookings import BookingView, get_booking
 from citywheels.policies import search_policies
 from citywheels.cases import calculate_refund, request_cancellation
 
@@ -124,29 +124,33 @@ def run_tool(
     *,
     data_dir: Path | None = None,
     now: datetime | None = None,
+    view: BookingView | None = None,
 ) -> dict:
     try:
         args = _arguments(arguments)
     except (json.JSONDecodeError, TypeError, ValueError) as exc:
         return {"error": f"Tool arguments were not valid JSON: {exc}"}
     try:
-        return _dispatch(name, args, data_dir=data_dir, now=now)
+        return _dispatch(name, args, data_dir=data_dir, now=now, view=view)
     except Exception as exc:
         return {"error": f"Tool {name} failed: {type(exc).__name__}: {exc}"}
 
 
-def _dispatch(name: str, args: dict, *, data_dir: Path | None, now: datetime | None) -> dict:
+def _dispatch(
+    name: str, args: dict, *, data_dir: Path | None, now: datetime | None, view: BookingView | None
+) -> dict:
     if name == "search_policies":
         return search_policies(str(args.get("query", "")), data_dir=data_dir)
     if name == "get_booking":
-        return get_booking(str(args.get("booking_id", "")), data_dir=data_dir)
+        return get_booking(str(args.get("booking_id", "")), data_dir=data_dir, view=view)
     if name == "calculate_refund":
         return calculate_refund(
             str(args.get("booking_id", "")),
             data_dir=data_dir,
             now=now,
             at=_moment(args.get("at")),
+            view=view,
         )
     if name == "request_cancellation":
-        return request_cancellation(str(args.get("booking_id", "")), data_dir=data_dir)
+        return request_cancellation(str(args.get("booking_id", "")), data_dir=data_dir, view=view)
     return {"error": f"Unknown tool: {name}"}

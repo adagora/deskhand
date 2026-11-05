@@ -103,9 +103,8 @@ Keep customer content out of workflow arguments. Temporal persists them, so `Cas
 
 ## Known gaps
 
-- The agent reads `data/bookings.json` and the workflow reads the backend database. After a cancellation, the agent still reads the old status. A read adapter over the backend closes this.
-- `get_booking` and `calculate_refund` have no customer scope. A booking id is a locator, not authorization, and the workflow checks ownership but the agent's read tools do not. The fixture has one demo customer. Scope these tools before real customers use the agent.
+- `python3 -m citywheels` is a single-user tool. It reads `data/bookings.json` with no customer scope. `orchestration ask` passes a `BackendView`, so the read tools show only the authenticated customer's bookings, and a booking that is not theirs looks like an unknown id. The view takes the status from the backend, so a cancelled booking is no longer quoted from the stale file. The catalog fields still come from the file.
 - The fake `Directory`, backend and ledger have no real identity, payment or settlement delay. A real payment adapter must deduplicate by operation id and support read-back.
 - There are no customer channels, and consent and review arrive through the command line.
 - Workflow changes need `workflow.patched` once real cases are running. That path has no test yet.
-- The JavaScript executor in ai-audit's `examples/citywheels/` rounds a half rental down, and `refund_for_booking` rounds it half up. The fixture rentals are even, so the amounts agree.
+- A storm claim is a staff decision made by the desk before any quote, so the QDL rule never sees it and `policies/refund.json` has no storm input.

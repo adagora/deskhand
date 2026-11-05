@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
+from citywheels.bookings import BookingView
 from citywheels.messages import contact_staff_message
 from citywheels.model import ModelTurn
 from citywheels.tools import TOOL_SPECS, run_tool
@@ -32,6 +33,7 @@ def run_agent(
     now: datetime | None = None,
     max_rounds: int = MAX_ROUNDS,
     system: str | None = None,
+    view: BookingView | None = None,
 ) -> AgentResult:
     """Run tools the model asks for until it returns a final answer."""
     if system is None:
@@ -71,7 +73,7 @@ def run_agent(
             }
         )
         for call in turn.tool_calls:
-            result = run_tool(call.name, call.arguments, data_dir=data_dir, now=now)
+            result = run_tool(call.name, call.arguments, data_dir=data_dir, now=now, view=view)
             trace.append(
                 {"name": call.name, "arguments": call.arguments, "result": result}
             )

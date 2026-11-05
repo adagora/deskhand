@@ -65,12 +65,26 @@ class RuleConformanceTests(unittest.TestCase):
                 checked += 1
         self.assertGreaterEqual(checked, 5)
 
+    def test_the_qdl_rule_rounds_half_a_cent_up_like_the_money_rule(self):
+        with tempfile.TemporaryDirectory() as folder:
+            evidence = AuditCli(("node", str(CLI)), Path(folder) / "audit.jsonl")
+            home, _ = seed_home(Path(folder) / "home")
+            desk = home.desk(business_clock=lambda: FIXED_NOW, release=lambda: "release")
+            record = next(item for item in load_bookings() if item["id"] == "CW-1002")
+            for index, rental in enumerate((25.01, 10.03, 0.01, 119.99, 1.05)):
+                odd = {**record, "id": f"CW-ODD{index}", "rental_price_eur": rental}
+                booking = booking_from_shop_record(odd, SCOPE.tenant, SCOPE.customer)
+                home.backend.seed([booking])
+                proposal = desk.propose(SCOPE, f"case-odd-{index}", booking.id)
+                self.assertEqual(proposal.amount_minor, refund_minor(booking, FIXED_NOW))
+                self.assertIsNotNone(evidence.decide(proposal, booking).id, rental)
+
     def test_a_changed_qdl_rule_is_refused_as_a_disagreement(self):
         with tempfile.TemporaryDirectory() as folder:
             policy = json.loads(DEFAULT_POLICY.read_text(encoding="utf-8"))
             for item in policy["inputs"]:
-                if item["id"] == "shareHalf":
-                    item["value"] = 0.25
+                if item["id"] == "percentHalf":
+                    item["value"] = 25
             changed = Path(folder) / "changed.json"
             changed.write_text(json.dumps(policy), encoding="utf-8")
             evidence = AuditCli(("node", str(CLI)), Path(folder) / "audit.jsonl", policy=changed)

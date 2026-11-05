@@ -3,7 +3,7 @@
 from datetime import datetime
 from pathlib import Path
 
-from citywheels.bookings import get_booking
+from citywheels.bookings import BookingView, get_booking
 from citywheels.clock import WARSAW, shop_now
 from citywheels.paths import default_data_dir
 from citywheels.refunds import refund_for_booking
@@ -14,12 +14,13 @@ def calculate_refund(
     data_dir: Path | None = None,
     now: datetime | None = None,
     at: datetime | None = None,
+    view: BookingView | None = None,
 ) -> dict:
     """Refund for cancelling one booking at `now`, or the fixed shop clock.
 
     `at` answers a what-if question about a later time. It cannot be earlier than now.
     """
-    looked_up = get_booking(booking_id, data_dir=data_dir or default_data_dir())
+    looked_up = get_booking(booking_id, data_dir=data_dir or default_data_dir(), view=view)
     if not looked_up["found"]:
         return {
             "found": False,
@@ -44,9 +45,9 @@ def calculate_refund(
     return quote
 
 
-def request_cancellation(booking_id: str, data_dir: Path | None = None) -> dict:
+def request_cancellation(booking_id: str, data_dir: Path | None = None, view: BookingView | None = None) -> dict:
     """Name the customer's request for the case workflow. This changes nothing."""
-    looked_up = get_booking(booking_id, data_dir=data_dir or default_data_dir())
+    looked_up = get_booking(booking_id, data_dir=data_dir or default_data_dir(), view=view)
     if not looked_up["found"]:
         return {
             "found": False,

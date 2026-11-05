@@ -52,7 +52,7 @@ For CW-1002 at the shop clock the quote is 34000 minor units: half of the 8000 r
 
 A refund above 100.00 EUR needs staff review as well as customer consent. `Desk(auto_approve_minor=...)` sets the limit.
 
-`policies/refund.json` is the same rule as a QDL program, for ai-audit `decide`. It is not on the money path. When evidence is on, a disagreement between the two stops the case before any write.
+`policies/refund.json` is the same rule as a QDL program, for ai-audit `decide`. It counts in cents and rounds the rental refund half up, as `refund_for_booking` does, so the two agree on every price. It is not on the money path. When evidence is on, a disagreement between the two stops the case before any write.
 
 ## Tests
 

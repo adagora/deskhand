@@ -10,7 +10,8 @@ from pathlib import Path
 from temporalio.client import Client
 from temporalio.testing import WorkflowEnvironment
 
-from casework.model import Refusal
+from casework.model import CustomerScope, Refusal
+from casework.view import BackendView
 from citywheels.agent import run_agent
 from citywheels.cli import build_model
 from citywheels.fake_model import FakeModel
@@ -53,8 +54,10 @@ async def _quote_when_ready(gateway: Gateway, token: str, case_id: str):
     return None, "starting"
 
 
-async def ask_and_open_cases(gateway: Gateway, token: str, question: str, model) -> dict:
-    result = run_agent(question, model)
+async def ask_and_open_cases(gateway: Gateway, token: str, question: str, model, backend) -> dict:
+    principal = gateway.directory.authenticate(token)
+    view = BackendView(backend, CustomerScope(principal.tenant, principal.id))
+    result = await asyncio.to_thread(run_agent, question, model, view=view)
     cases = []
     for intent in result.write_intents:
         case_id = await gateway.open_case(token, intent["booking_id"])
@@ -80,7 +83,7 @@ async def demo() -> int:
         try:
             gateway = Gateway(environment.client, home.directory)
             async with build_worker(environment.client, activities_for(home)):
-                asked = await ask_and_open_cases(gateway, tokens["customer"], "Please cancel booking CW-1002.", FakeModel())
+                asked = await ask_and_open_cases(gateway, tokens["customer"], "Please cancel booking CW-1002.", FakeModel(), home.backend)
                 case = asked["cases"][0]
                 digest = case["quote"]["digest"]
                 await gateway.consent(tokens["customer"], case["case_id"], digest)
@@ -120,7 +123,7 @@ async def run_command(args) -> int:
     gateway = await _gateway(args)
     token = _token()
     if args.command == "ask":
-        _emit(await ask_and_open_cases(gateway, token, args.question, build_model(current(args.provider))))
+        _emit(await ask_and_open_cases(gateway, token, args.question, build_model(current(args.provider)), open_home(args.home).backend))
     elif args.command == "status":
         handle = gateway.handle_for(token, args.case)
         _emit({

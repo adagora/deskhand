@@ -153,7 +153,8 @@ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
         async with self._worker():
             for booking_id, amount in (("CW-1001", 9000), ("CW-1002", 34000), ("CW-1004", 7300)):
                 asked = await ask_and_open_cases(
-                    self.gateway, self.tokens["customer"], f"Please cancel booking {booking_id}.", FakeModel()
+                    self.gateway, self.tokens["customer"], f"Please cancel booking {booking_id}.", FakeModel(),
+                    self.home.backend,
                 )
                 self.assertEqual(len(asked["cases"]), 1, asked)
                 case = asked["cases"][0]
@@ -164,9 +165,21 @@ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_a_price_question_opens_no_case(self):
         asked = await ask_and_open_cases(
-            self.gateway, self.tokens["customer"], "How much would I get back if I cancel CW-1002?", FakeModel()
+            self.gateway, self.tokens["customer"], "How much would I get back if I cancel CW-1002?", FakeModel(),
+            self.home.backend,
         )
         self.assertEqual(asked["cases"], [])
+
+    async def test_a_customer_cannot_open_a_case_for_a_booking_that_is_not_theirs(self):
+        with transaction(self.home.backend.path) as connection:
+            connection.execute("UPDATE booking SET customer='someone-else' WHERE id='CW-1002'")
+        async with self._worker():
+            asked = await ask_and_open_cases(
+                self.gateway, self.tokens["customer"], "Please cancel booking CW-1002.", FakeModel(),
+                self.home.backend,
+            )
+        self.assertEqual(asked["cases"], [])
+        self.assertIn("was not found", asked["answer"])
 
     async def test_a_small_refund_runs_on_consent_alone(self):
         with transaction(self.home.backend.path) as connection:
