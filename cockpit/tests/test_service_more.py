@@ -123,6 +123,17 @@ class MoreServiceTests(unittest.IsolatedAsyncioTestCase):
         silent = CockpitService(self.client, self.home, prefix=self.prefix, task_queue=self.queue)
         self.assertEqual(await silent.conversations(self.supervisor), {"configured": False, "conversations": []})
 
+    async def test_a_case_waiting_for_a_person_still_shows_its_booking(self):
+        async with build_worker(self.client, CaseActivities(self.home.desk(), self.home.staff), self.queue):
+            case_id = await self.gateway.open_case(self.customer, "CW-1001", storm_claim=True)
+            self.addAsyncCleanup(self._stop, case_id)
+            for _ in range(100):
+                rows = await self.service.cases(self.supervisor)
+                if rows and rows[0]["needs"] == "staff":
+                    break
+                await asyncio.sleep(0.1)
+        self.assertEqual((rows[0]["needs"], rows[0]["booking_id"]), ("staff", "CW-1001"))
+
     async def test_closed_exceptions_are_kept_for_reading(self):
         tenant = "citywheels"
         self.home.staff.open(tenant, "case-x", None, "staff_required_for_claim", "claims-team", "2026-11-05T10:00:00+00:00")

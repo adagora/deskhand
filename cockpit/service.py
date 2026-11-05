@@ -113,6 +113,7 @@ class CockpitService:
 
         rows = list(await asyncio.gather(*(one(workflow) for workflow in listed)))
         closed = sorted((row for row in rows if row["status"] != "RUNNING"), key=lambda row: row["closed_at"] or "", reverse=True)[:CLOSED_BOOKINGS]
+        closed += [row for row in rows if row["status"] == "RUNNING" and row["proposal"] is None]
         for row, request in zip(closed, await asyncio.gather(*(self._request_of(self._workflow_id(principal.tenant, row["case_id"])) for row in closed))):
             row["booking_id"] = request.booking_id if request else None
         urgency = {"review": 0, "staff": 1, "stuck": 2, "customer": 3, None: 4}

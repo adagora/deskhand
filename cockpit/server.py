@@ -124,6 +124,8 @@ class _Handler(BaseHTTPRequestHandler):
             me = self.server.call(service.me(token))
             cookie = f"cockpit={token}; HttpOnly; SameSite=Strict; Path=/evals/"
             return self._send_json(me, extra={"Set-Cookie": cookie})
+        if path == "/api/signout":
+            return self._send_json({"ok": True}, extra={"Set-Cookie": "cockpit=; Max-Age=0; HttpOnly; SameSite=Strict; Path=/evals/"})
         token = self._token()
         parts = path.removeprefix("/api/").split("/")
         if len(parts) == 3 and parts[0] == "cases" and NAME.match(parts[1]):

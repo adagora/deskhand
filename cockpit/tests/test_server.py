@@ -240,6 +240,13 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(response.status, 401)
         self.assertIsNone(response.getheader("Set-Cookie"))
 
+    def test_signing_out_clears_the_evaluation_cookie_without_needing_a_token(self):
+        response, body = self.json("POST", "/api/signout", body={})
+        self.assertEqual((response.status, body["ok"]), (200, True))
+        cookie = response.getheader("Set-Cookie")
+        self.assertIn("Max-Age=0", cookie)
+        self.assertIn("Path=/evals/", cookie)
+
     def test_an_evaluation_page_needs_the_cookie_and_gets_its_own_policy(self):
         response, _ = self.request("GET", "/evals/run-1/dashboard.html")
         self.assertEqual(response.status, 401)
