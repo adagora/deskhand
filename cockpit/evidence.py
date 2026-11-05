@@ -5,6 +5,7 @@ import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from casework.model import Refusal
 
@@ -14,6 +15,21 @@ RECEIPT_FORMATS = {
     "html": ("html", "text/html; charset=utf-8"),
 }
 TOKEN = re.compile(r"token=([A-Za-z0-9_-]+)")
+
+
+def web_address(value: str) -> str:
+    parsed = urlsplit(value)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        raise ValueError(value)
+    return value
+
+
+def console_link_for(console_url: str | None, route: str) -> str | None:
+    if not console_url:
+        return None
+    base, _, fragment = console_url.partition("#")
+    token = TOKEN.search(fragment)
+    return f"{base.rstrip('/')}/#/{route}" + (f"?token={token.group(1)}" if token else "")
 
 
 @dataclass(frozen=True)
@@ -35,11 +51,7 @@ class AuditLogReader:
         return found
 
     def console_link(self, route: str) -> str | None:
-        if not self.console_url:
-            return None
-        base, _, fragment = self.console_url.partition("#")
-        token = TOKEN.search(fragment)
-        return f"{base.rstrip('/')}/#/{route}" + (f"?token={token.group(1)}" if token else "")
+        return console_link_for(self.console_url, route)
 
     def for_correlation(self, correlation: str) -> dict:
         if not correlation:

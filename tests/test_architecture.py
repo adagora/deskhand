@@ -95,6 +95,14 @@ class ArchitectureTests(unittest.TestCase):
         self.assertNotIn("<script>", page)
         self.assertIn('lang="en"', page)
 
+    def test_the_sidebar_links_to_other_tools_open_safely(self):
+        script = (ROOT / "cockpit" / "static" / "cockpit.js").read_text(encoding="utf-8")
+        start = script.index("function renderTools()")
+        body = script[start:script.index("\n}\n", start)]
+        self.assertIn('target: "_blank"', body)
+        self.assertIn('rel: "noopener noreferrer"', body)
+        self.assertIn("https?:", body)
+
     def test_casework_has_one_money_rule(self):
         for path in _sources("casework"):
             text = path.read_text(encoding="utf-8")

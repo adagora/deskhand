@@ -23,6 +23,9 @@ const ICONS = {
   moon: [["path", { d: "M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z" }]],
   auto: [["circle", { cx: 12, cy: 12, r: 9 }], ["path", { d: "M12 3a9 9 0 0 1 0 18z", fill: "currentColor" }]],
   inbox: [["path", { d: "M4 13l2.5-7h11L20 13M4 13v6h16v-6M4 13h5l1 2h4l1-2h5" }]],
+  console: [["rect", { x: 3, y: 4, width: 18, height: 13, rx: 2 }], ["path", { d: "M8 21h8M12 17v4" }]],
+  evaluation: [["path", { d: "M4 19V5M4 19h16" }], ["path", { d: "M8 15l3-4 3 2 4-6" }]],
+  external: [["path", { d: "M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4" }]],
 };
 const THEMES = ["auto", "light", "dark"];
 const S = { token: null, me: null, timer: null, todoCount: 0, busy: false, follow: null, run: null, shown: "", theme: "auto", replays: {} };
@@ -119,6 +122,16 @@ function renderNav(active) {
     h("a", { href: `#/${key}`, "aria-current": key === active ? "page" : null }, icon(key), h("span", { class: "label" }, label),
       key === "todo" && S.todoCount ? h("span", { class: "badge", "aria-label": `${S.todoCount} waiting` }, S.todoCount) : null)));
   document.getElementById("who").replaceChildren(...(S.me ? [h("strong", {}, S.me.id), S.me.roles.join(", ")] : []));
+  renderTools();
+}
+
+function renderTools() {
+  const box = document.getElementById("tools-nav");
+  const tools = ((S.me && S.me.tools) || []).filter((tool) => /^https?:\/\//i.test(tool.href));
+  box.hidden = tools.length === 0;
+  box.replaceChildren(...(tools.length ? [h("p", { class: "nav-label" }, "Related tools")] : []), ...tools.map((tool) =>
+    h("a", { href: tool.href, target: "_blank", rel: "noopener noreferrer", "aria-label": `${tool.label} (opens in a new tab)` },
+      icon(tool.id), h("span", { class: "label" }, tool.label), icon("external"))));
 }
 
 function setHeading(title, subtitle) {
@@ -132,6 +145,8 @@ function signIn() {
   setHeading("Sign in", "");
   document.getElementById("tools").hidden = true;
   document.getElementById("nav").replaceChildren();
+  document.getElementById("tools-nav").replaceChildren();
+  document.getElementById("tools-nav").hidden = true;
   const input = h("input", { id: "token", type: "password", autocomplete: "off", required: true });
   const form = h("form", { class: "card signin", onsubmit: async (event) => {
     event.preventDefault();

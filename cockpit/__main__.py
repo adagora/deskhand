@@ -9,7 +9,7 @@ from pathlib import Path
 from temporalio.client import Client
 
 from casework.messages import explain
-from cockpit.evidence import AuditLogReader
+from cockpit.evidence import AuditLogReader, web_address
 from cockpit.quality import EvalRuns
 from cockpit.server import CockpitServer
 from cockpit.service import CockpitService
@@ -31,9 +31,10 @@ def parser() -> argparse.ArgumentParser:
     root.add_argument("--port", type=int, default=8799)
     root.add_argument("--audit-log", type=Path, default=_from_environment("AUDITLINE_LOG", "AI_AUDIT_LOG"), help="ai-audit log to join by correlation id.")
     root.add_argument("--audit-cli", type=Path, default=_from_environment("AUDITLINE_CLI", "AI_AUDIT_CLI"), help="dist/src/cli.js of an ai-audit build, used to verify the chain.")
-    root.add_argument("--console-url", help="Address of the ai-audit console, linked from a case.")
-    root.add_argument("--proxy-url", help="Address of the ai-audit proxy, checked on the Health screen.")
+    root.add_argument("--console-url", type=web_address, help="Address of the ai-audit console, linked from a case and from the sidebar.")
+    root.add_argument("--proxy-url", type=web_address, help="Address of the ai-audit proxy, checked on the Health screen.")
     root.add_argument("--evals-dir", type=Path, help="IntentGauge runs folder to read evaluation reports from.")
+    root.add_argument("--evaluation-url", type=web_address, help="Address of the IntentGauge dashboard, linked from the sidebar.")
     return root
 
 
@@ -54,7 +55,10 @@ def main() -> int:
         return fail("temporal_unreachable")
     audit = AuditLogReader(args.audit_log, args.audit_cli, args.console_url) if args.audit_log else None
     evals = EvalRuns(args.evals_dir) if args.evals_dir else None
-    service = CockpitService(client, open_home(args.home), audit=audit, evals=evals, proxy_url=args.proxy_url)
+    service = CockpitService(
+        client, open_home(args.home), audit=audit, evals=evals, proxy_url=args.proxy_url,
+        console_url=args.console_url, evaluation_url=args.evaluation_url,
+    )
     server = CockpitServer(service, loop, "127.0.0.1", args.port)
     token = os.environ.get("CASEWORK_TOKEN", "")
     url = f"http://127.0.0.1:{server.server_address[1]}/" + (f"#token={token}" if token else "")

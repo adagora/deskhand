@@ -87,6 +87,22 @@ class CockpitServiceTests(unittest.IsolatedAsyncioTestCase):
             await self.service.cases("not-a-token")
         self.assertEqual(unknown.exception.code, "unauthenticated")
 
+    async def test_the_identity_lists_the_related_tools_that_are_set_up_and_only_those(self):
+        self.assertEqual((await self.service.me(self.reviewer))["tools"], [])
+        linked = CockpitService(
+            self.client, self.home, prefix=self.prefix, task_queue=self.queue,
+            audit=AuditLogReader(self.log, None, "http://127.0.0.1:8793/#token=abc"), evaluation_url="http://127.0.0.1:4317/",
+        )
+        tools = (await linked.me(self.reviewer))["tools"]
+        self.assertEqual([tool["id"] for tool in tools], ["console", "evaluation"])
+        self.assertEqual(tools[0]["href"], "http://127.0.0.1:8793/#/overview?token=abc")
+        self.assertEqual(tools[1]["href"], "http://127.0.0.1:4317/")
+        with self.assertRaises(Refusal) as seen:
+            await linked.me(self.customer)
+        self.assertEqual(seen.exception.code, "staff_only")
+        only_dashboard = CockpitService(self.client, self.home, prefix=self.prefix, task_queue=self.queue, evaluation_url="http://127.0.0.1:4317/")
+        self.assertEqual([tool["id"] for tool in (await only_dashboard.me(self.reviewer))["tools"]], ["evaluation"])
+
     async def test_a_case_moves_from_waiting_for_the_customer_to_needing_a_review_and_then_done(self):
         async with self._worker():
             case_id, digest = await self._open()

@@ -17,7 +17,7 @@ from casework.messages import explain, phase_label
 from casework.model import CANCEL_REFUND, CaseRequest, CaseResult, Consent, Principal, Proposal, Refusal, Resolution, Review, Timing
 from casework.rule import current_release
 from citywheels.clock import shop_now
-from cockpit.evidence import AuditLogReader
+from cockpit.evidence import AuditLogReader, console_link_for
 from cockpit.quality import EvalRuns
 from orchestration.gateway import TASK_QUEUE, Gateway
 from orchestration.home import INTENT, Home
@@ -76,6 +76,8 @@ class CockpitService:
         audit: AuditLogReader | None = None,
         evals: EvalRuns | None = None,
         proxy_url: str | None = None,
+        console_url: str | None = None,
+        evaluation_url: str | None = None,
         now=system_now,
     ):
         self.client = client
@@ -85,6 +87,8 @@ class CockpitService:
         self.audit = audit
         self.evals = evals
         self.proxy_url = proxy_url
+        self.console_url = console_url or (audit.console_url if audit else None)
+        self.evaluation_url = evaluation_url
         self.now = now
         self._requests: dict[str, CaseRequest] = {}
         self.gateway = Gateway(client, home.directory, task_queue, prefix)
@@ -97,7 +101,16 @@ class CockpitService:
 
     async def me(self, token: str) -> dict:
         principal = self.principal(token)
-        return {"id": principal.id, "tenant": principal.tenant, "roles": principal.roles}
+        return {"id": principal.id, "tenant": principal.tenant, "roles": principal.roles, "tools": self.tools()}
+
+    def tools(self) -> list[dict]:
+        found = []
+        console = console_link_for(self.console_url, "overview")
+        if console:
+            found.append({"id": "console", "label": "Audit console", "href": console})
+        if self.evaluation_url:
+            found.append({"id": "evaluation", "label": "Evaluations", "href": self.evaluation_url})
+        return found
 
     async def cases(self, token: str) -> list[dict]:
         principal = self.principal(token)
