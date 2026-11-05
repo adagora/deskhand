@@ -2,7 +2,7 @@
 
 Model: fake deterministic tool-calling stand-in. No API key and no network.
 
-Passed: 20 / 20
+Passed: 23 / 23
 
 Costly failures: 0
 Ordinary failures: 0
@@ -32,6 +32,9 @@ A question still counts once in the pass line above. A costly miss is a wrong am
 | change-cw-1003 | pass | booking_change | yes | 0 | Can I change the date of booking CW-1003? |  |
 | change-cw-1001 | pass | booking_change | yes | 0 | Can I change the bike type of booking CW-1001? |  |
 | age-17-ebike | pass | age_allowed | yes | 0 | Can my 17-year-old rent an e-bike? |  |
+| request-cancel-cw-1002 | pass | cancel_request |  | 0 | Please cancel my booking CW-1002. |  |
+| request-cancel-go-ahead-cw-1002 | pass | cancel_request |  | 0 | Go ahead and cancel CW-1002 for me. |  |
+| price-only-cw-1002 | pass | price_only |  | 0 | How much would I get back if I cancelled booking CW-1002? |  |
 
 ## By intent
 
@@ -41,11 +44,13 @@ A question still counts once in the pass line above. A costly miss is a wrong am
 | age_denied | 1 | 1 | 0 |
 | booking_change | 2 | 2 | 0 |
 | booking_missing | 1 | 1 | 0 |
+| cancel_request | 2 | 2 | 0 |
 | deposit | 1 | 1 | 0 |
 | hours | 1 | 1 | 0 |
 | late_fee | 1 | 1 | 0 |
 | location | 1 | 1 | 0 |
 | price | 1 | 1 | 0 |
+| price_only | 1 | 1 | 0 |
 | refund_blocked | 1 | 1 | 0 |
 | refund_confirmed | 4 | 4 | 0 |
 | refuse | 3 | 3 | 0 |

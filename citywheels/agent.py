@@ -15,6 +15,14 @@ class AgentResult:
     answer: str
     tool_trace: list[dict] = field(default_factory=list)
 
+    @property
+    def write_intents(self) -> list[dict]:
+        return [
+            step["result"]["write_intent"]
+            for step in self.tool_trace
+            if isinstance(step.get("result"), dict) and "write_intent" in step["result"]
+        ]
+
 
 def run_agent(
     question: str,

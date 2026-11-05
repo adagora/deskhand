@@ -81,7 +81,7 @@ class SurfaceContractTests(unittest.TestCase):
         payload = json.loads(stdout)
         self.assertEqual(
             list(payload.keys()),
-            ["answer", "contract_version", "ok", "provider", "tool_trace"],
+            ["answer", "contract_version", "ok", "provider", "tool_trace", "write_intents"],
         )
         self.assertTrue(payload["ok"])
         self.assertEqual(payload["contract_version"], "1")

@@ -87,6 +87,58 @@ class EvalSetTests(unittest.TestCase):
         self.assertIn("## By intent", text)
         self.assertIn("Holdout passed:", text)
 
+    def _refund_item(self, booking_id: str = "CW-1002", amount: int = 340) -> dict:
+        return {
+            "id": "money", "question": "x", "kind": "refund", "intent": "refund_confirmed",
+            "booking_id": booking_id, "expect_amount": amount, "tool": "calculate_refund",
+        }
+
+    def test_the_right_amount_passes_in_any_money_format(self):
+        module = _load_eval()
+        for written in ("340 EUR", "€340", "€ 340", "340 €", "340 euros", "**€340**", "€340.00"):
+            answer = f"You get {written} back. The booking fee is not refunded. Refunded to the same card."
+            with self.subTest(written=written):
+                self.assertTrue(module.score_answer(self._refund_item(), answer, ["calculate_refund"])["passed"])
+
+    def test_a_wrong_or_invented_amount_is_costly_in_any_money_format(self):
+        module = _load_eval()
+        for answer in (
+            "You get €345 back. The booking fee is not refunded. Same card.",
+            "You get 340 EUR back, and €5 for the trouble. The booking fee is not refunded. Same card.",
+            "You get €342 back. The booking fee is not refunded. Same card.",
+        ):
+            with self.subTest(answer=answer):
+                scored = module.score_answer(self._refund_item(), answer, ["calculate_refund"])
+                self.assertFalse(scored["passed"])
+                self.assertGreaterEqual(scored["costly_misses"], 1)
+
+    def test_a_blocked_booking_passes_only_without_money_back(self):
+        module = _load_eval()
+        item = self._refund_item("CW-1008", 0)
+        good = "You cannot cancel booking CW-1008 because it is in progress, and nothing will be refunded."
+        self.assertTrue(module.score_answer(item, good, ["calculate_refund"])["passed"])
+        bad = module.score_answer(item, good + " You get €16 back.", ["calculate_refund"])
+        self.assertGreaterEqual(bad["costly_misses"], 1)
+
+    def test_a_rider_below_the_minimum_must_be_refused(self):
+        module = _load_eval()
+        item = {"id": "age", "question": "x", "kind": "fact", "intent": "age_denied"}
+        self.assertTrue(module.score_answer(item, "No, the minimum for electric bikes is 16.", [])["passed"])
+        allowed = module.score_answer(item, "Yes, your child is welcome to ride.", [])
+        self.assertGreaterEqual(allowed["costly_misses"], 1)
+
+    def test_a_write_intent_is_scored_by_what_the_customer_asked(self):
+        module = _load_eval()
+        answer = "You get 340 EUR back. The booking fee is not refunded. Refunded to the same card."
+        tools = ["calculate_refund", "request_cancellation"]
+        unasked = module.score_answer(self._refund_item(), answer, tools)
+        self.assertEqual((unasked["passed"], unasked["costly_misses"]), (False, 0))
+        either = {**self._refund_item(), "request_cancellation": "either"}
+        self.assertTrue(module.score_answer(either, answer, tools)["passed"])
+        self.assertTrue(module.score_answer(either, answer, ["calculate_refund"])["passed"])
+        wanted = {**self._refund_item(), "request_cancellation": True}
+        self.assertFalse(module.score_answer(wanted, answer, ["calculate_refund"])["passed"])
+
     def test_fee_added_back_is_a_costly_miss(self):
         module = _load_eval()
         item = {

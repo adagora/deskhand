@@ -4,7 +4,7 @@ from pathlib import Path
 
 from citywheels.bookings import get_booking
 from citywheels.policies import search_policies
-from citywheels.cases import calculate_refund
+from citywheels.cases import calculate_refund, request_cancellation
 
 TOOL_SPECS = [
     {
@@ -49,6 +49,25 @@ TOOL_SPECS = [
             "Calculate the refund if the customer cancels this booking at the "
             "fixed CityWheels clock. The amount is computed by code. Do not "
             "calculate a refund yourself."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "booking_id": {
+                    "type": "string",
+                    "description": "Booking id such as CW-1002.",
+                }
+            },
+            "required": ["booking_id"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "request_cancellation",
+        "description": (
+            "Record that the customer clearly asks to cancel this booking now. "
+            "This changes nothing: the customer gets an exact quote and must confirm it. "
+            "Do not call it when the customer only asks what a cancellation would cost."
         ),
         "parameters": {
             "type": "object",
@@ -108,4 +127,6 @@ def _dispatch(name: str, args: dict, *, data_dir: Path | None, now: datetime | N
             data_dir=data_dir,
             now=now,
         )
+    if name == "request_cancellation":
+        return request_cancellation(str(args.get("booking_id", "")), data_dir=data_dir)
     return {"error": f"Unknown tool: {name}"}

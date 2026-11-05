@@ -1,6 +1,7 @@
-"""Run the shipped agent on eval/questions.json and write eval/results.md.
+"""Run the shipped agent on eval/questions.json and write a results file.
 
-Uses the deterministic fake model, so the run needs no API key and no network.
+The default is the deterministic fake model, which needs no API key and no network.
+--provider runs the same questions on a hosted model, and those calls are billable.
 Refund checks call calculate_refund for that booking.
 """
 
@@ -9,6 +10,7 @@ import json
 import re
 import sys
 from datetime import datetime
+from decimal import Decimal
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -18,12 +20,15 @@ if str(ROOT) not in sys.path:
 from citywheels.agent import run_agent
 from citywheels.bookings import get_booking
 from citywheels.cases import calculate_refund
+from citywheels.cli import build_model
 from citywheels.clock import shop_now
 from citywheels.fake_model import FakeModel
 from citywheels.schedule import change_allowed
+from citywheels.settings import current
 
 QUESTIONS = Path(__file__).resolve().parent / "questions.json"
 DEFAULT_OUTPUT = Path(__file__).resolve().parent / "results.md"
+FAKE_LINE = "Model: fake deterministic tool-calling stand-in. No API key and no network."
 
 
 def load_questions(path: Path = QUESTIONS) -> list[dict]:
@@ -32,6 +37,26 @@ def load_questions(path: Path = QUESTIONS) -> list[dict]:
 
 def _has(haystack: str, needle: str) -> bool:
     return needle.lower() in haystack.lower()
+
+
+_MONEY = re.compile(
+    r"€\s*(\d+(?:[.,]\d{1,2})?)|(\d+(?:[.,]\d{1,2})?)\s*(?:EUR\b|euros?\b|€)",
+    re.IGNORECASE,
+)
+_REFUSES_CANCEL = re.compile(r"(?:cannot|can't|can’t|not able to)\s+(?:be\s+)?cancel", re.IGNORECASE)
+_REFUSES_RIDER = re.compile(r"\b(?:cannot|can't|can’t|not allowed|no)\b", re.IGNORECASE)
+
+
+def money_mentions(answer: str) -> set[Decimal]:
+    amounts = set()
+    for match in _MONEY.finditer(answer):
+        amounts.add(Decimal((match.group(1) or match.group(2)).replace(",", ".")))
+    return amounts
+
+
+def _known_amounts(computed: dict) -> set[Decimal]:
+    fields = ("refund_eur", "rental_refund_eur", "deposit_refund_eur", "booking_fee_eur", "rental_price_eur", "deposit_eur")
+    return {Decimal(str(computed[name])) for name in fields if computed.get(name) is not None}
 
 
 # A costly miss can lose money, strand a rider, or invent a booking.
@@ -51,6 +76,11 @@ def score_answer(item: dict, answer: str, tools: list[str], data_dir: Path | Non
         miss(f"expected tool {item['tool']}, called {tools or 'nothing'}", False)
     if item.get("expect_no_tools") and tools:
         miss("expected no tool calls, called " + ", ".join(tools), False)
+    wanted = item.get("request_cancellation")
+    if wanted is True and "request_cancellation" not in tools:
+        miss("the customer asked to cancel and request_cancellation was not called", False)
+    if wanted is None and "request_cancellation" in tools:
+        miss("requested a cancellation the customer did not ask for", False)
 
     kind = item["kind"]
     intent = item.get("intent") or kind
@@ -62,8 +92,12 @@ def score_answer(item: dict, answer: str, tools: list[str], data_dir: Path | Non
                 f"calculate_refund returned {amount}, question file expected {item['expect_amount']}",
                 True,
             )
-        if f"{amount} EUR" not in answer:
-            miss(f"answer does not contain {amount} EUR", True)
+        mentioned = money_mentions(answer)
+        if amount and Decimal(str(amount)) not in mentioned:
+            miss(f"answer does not state the refund of {amount} EUR", True)
+        invented = sorted(mentioned - _known_amounts(computed) - {Decimal(0)})
+        if invented:
+            miss("answer states an amount the tool did not return: " + ", ".join(map(str, invented)), True)
         if computed.get("can_cancel"):
             if "not refunded" not in answer.lower():
                 miss("answer does not say the booking fee is not refunded", False)
@@ -77,11 +111,13 @@ def score_answer(item: dict, answer: str, tools: list[str], data_dir: Path | Non
             if fee and str(amount + fee) in answer:
                 miss(f"answer contains {amount + fee}, which adds the booking fee", True)
         else:
-            if "cannot be cancelled" not in answer.lower():
+            if not _REFUSES_CANCEL.search(answer):
                 miss("answer does not say the booking cannot be cancelled", True)
-            if str(computed.get("status")) not in answer:
-                miss(f"answer does not mention status {computed.get('status')}", False)
-            if amount == 0 and re_nonzero_refund(answer):
+            status = str(computed.get("status"))
+            if status not in answer and status.replace("_", " ") not in answer:
+                miss(f"answer does not mention status {status}", False)
+            fee = Decimal(str(computed.get("booking_fee_eur") or 0))
+            if amount == 0 and any(value not in (Decimal(0), fee) for value in money_mentions(answer)):
                 miss("answer offers money back on a booking that cannot be cancelled", True)
     elif kind == "not_found":
         computed = calculate_refund(item["booking_id"], data_dir=data_dir)
@@ -89,7 +125,7 @@ def score_answer(item: dict, answer: str, tools: list[str], data_dir: Path | Non
             miss("calculate_refund unexpectedly found the booking", True)
         if "not found" not in answer.lower():
             miss("answer does not say the booking was not found", True)
-        if re_invented_amount(answer):
+        if money_mentions(answer):
             miss("answer invents a refund amount for a missing booking", True)
     elif kind == "refuse":
         if "staff" not in answer.lower():
@@ -103,6 +139,11 @@ def score_answer(item: dict, answer: str, tools: list[str], data_dir: Path | Non
             miss("answer grants a storm refund automatically", True)
     elif intent == "booking_change":
         _score_change(item, answer, miss, data_dir)
+    elif intent == "age_denied":
+        if not _REFUSES_RIDER.search(answer):
+            miss("answer does not refuse a rider below the age minimum", True)
+        if "16" not in answer:
+            miss("answer does not cite the age minimum of 16", False)
     elif intent == "age_allowed":
         lowered = answer.lower()
         allows = "yes" in lowered or "can rent" in lowered
@@ -139,14 +180,6 @@ def score_answer(item: dict, answer: str, tools: list[str], data_dir: Path | Non
     }
 
 
-def re_nonzero_refund(answer: str) -> bool:
-    return re.search(r"\b[1-9]\d*\s*EUR\b", answer) is not None
-
-
-def re_invented_amount(answer: str) -> bool:
-    return re.search(r"\b\d+\s*EUR\b", answer) is not None
-
-
 def _promises_automatic_storm_refund(answer: str) -> bool:
     lowered = answer.lower()
     if "not automatically" in lowered or "does not automatically" in lowered:
@@ -177,13 +210,19 @@ def _score_change(item: dict, answer: str, miss, data_dir: Path | None) -> None:
 
 
 def check_question(item: dict, data_dir: Path | None = None, model=None) -> dict:
-    result = run_agent(item["question"], model or FakeModel(), data_dir=data_dir)
+    try:
+        result = run_agent(item["question"], model or FakeModel(), data_dir=data_dir)
+    except (RuntimeError, OSError) as error:
+        scored = score_answer(item, "", [], data_dir=data_dir)
+        scored["notes"].insert(0, f"the model call failed: {error}")
+        scored["passed"] = False
+        return scored
     names = [step["name"] for step in result.tool_trace]
     scored = score_answer(item, result.answer, names, data_dir=data_dir)
     return scored
 
 
-def render(rows: list[dict]) -> str:
+def render(rows: list[dict], model_line: str = FAKE_LINE) -> str:
     passed = sum(1 for row in rows if row["passed"])
     total = len(rows)
     costly = sum(row["costly_misses"] for row in rows)
@@ -192,7 +231,7 @@ def render(rows: list[dict]) -> str:
     lines = [
         "# CityWheels evaluation",
         "",
-        "Model: fake deterministic tool-calling stand-in. No API key and no network.",
+        model_line,
         "",
         f"Passed: {passed} / {total}",
         "",
@@ -263,9 +302,15 @@ def _cell(value: str) -> str:
     return " ".join(str(value).split()).replace("|", "/")
 
 
-def run(output: Path, questions_path: Path = QUESTIONS) -> tuple[int, int]:
-    rows = [check_question(item) for item in load_questions(questions_path)]
-    output.write_text(render(rows), encoding="utf-8")
+def run(output: Path, questions_path: Path = QUESTIONS, provider: str | None = None) -> tuple[int, int]:
+    model, line = None, FAKE_LINE
+    if provider:
+        settings = current(provider)
+        model = build_model(settings)
+        name = settings.openai_model if provider == "openai" else settings.gemini_model
+        line = f"Model: {provider} {name}, called live. This file is not regenerated by the tests."
+    rows = [check_question(item, model=model) for item in load_questions(questions_path)]
+    output.write_text(render(rows, line), encoding="utf-8")
     passed = sum(1 for row in rows if row["passed"])
     return passed, len(rows)
 
@@ -274,8 +319,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Evaluate the CityWheels help desk agent.")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--questions", type=Path, default=QUESTIONS)
+    parser.add_argument("--provider", choices=("openai", "gemini"), help="Run on a hosted model. Billable.")
     args = parser.parse_args(argv)
-    passed, total = run(args.output, args.questions)
+    if args.provider and args.output == DEFAULT_OUTPUT:
+        parser.error("--provider needs its own --output, so eval/results.md stays the fake-model score")
+    passed, total = run(args.output, args.questions, args.provider)
     print(f"Passed {passed} / {total}")
     print(f"Wrote {args.output}")
     return 0

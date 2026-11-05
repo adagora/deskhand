@@ -1,6 +1,6 @@
 # Live holdout
 
-The system prompt was not edited after this run.
+This is an older, short run. On 2026-11-05 the system prompt gained one line about `request_cancellation`, and the scorer began to read money in any format. `results-live-openai.md` and `results-live-gemini.md` are the newer runs of all the questions, and the holdout results there match this file. No holdout question was used to edit the prompt.
 
 ## openai gpt-4o-mini
 

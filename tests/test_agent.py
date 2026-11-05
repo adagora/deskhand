@@ -232,7 +232,7 @@ class AgentLoopTests(unittest.TestCase):
     def test_tool_specs_and_prompt(self):
         self.assertEqual(
             {tool["name"] for tool in TOOL_SPECS},
-            {"search_policies", "get_booking", "calculate_refund"},
+            {"search_policies", "get_booking", "calculate_refund", "request_cancellation"},
         )
         prompt = load_system_prompt()
         self.assertIn("2026-06-10 09:00", prompt)

@@ -79,6 +79,7 @@ _HINT_WORDS = {
 }
 _HINT_PHRASES = ("where are you", "where is the shop", "child seat", "opening hours")
 _REFUND_WORDS = ("cancel", "refund", "money back", "get back", "how much will")
+_CANCEL_NOW = re.compile(r"\b(please cancel|cancel it|cancel my booking|go ahead and cancel)\b", re.IGNORECASE)
 
 
 def _user_question(messages: list[dict]) -> str:
@@ -120,6 +121,11 @@ def _decide(question: str) -> list[tuple[str, dict]] | None:
             ("search_policies", {"query": "changing a booking dates or bike type"}),
         ]
     lowered = question.lower()
+    if booking_id and _CANCEL_NOW.search(question):
+        return [
+            ("calculate_refund", {"booking_id": booking_id}),
+            ("request_cancellation", {"booking_id": booking_id}),
+        ]
     if booking_id and any(word in lowered for word in _REFUND_WORDS):
         return [("calculate_refund", {"booking_id": booking_id})]
     if booking_id:
@@ -434,9 +440,13 @@ def _answer_from_tools(question: str, tool_messages: list[dict]) -> str:
     changed = change_answer(question, parsed)
     if changed:
         return changed
+    requested = any(name == "request_cancellation" and "write_intent" in payload for name, payload in parsed)
     for name, payload in parsed:
         if name == "calculate_refund":
-            return format_refund(payload)
+            quote = format_refund(payload)
+            if requested and payload.get("can_cancel"):
+                return f"{quote} Nothing has changed yet. You will get an exact quote to confirm."
+            return quote
     for name, payload in parsed:
         if name == "get_booking":
             return format_booking(payload)

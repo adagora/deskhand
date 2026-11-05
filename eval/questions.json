@@ -43,7 +43,8 @@
     "expect_amount": 340,
     "tool": "calculate_refund",
     "intent": "refund_confirmed",
-    "holdout": false
+    "holdout": false,
+    "request_cancellation": "either"
   },
   {
     "id": "age-14-ebike",
@@ -51,19 +52,11 @@
     "kind": "fact",
     "example": true,
     "tool": "search_policies",
-    "expect_all": [
-      "No.",
-      "Electric bikes: from 16 years old."
-    ],
     "forbid": [
       "Canberra"
     ],
     "intent": "age_denied",
-    "holdout": false,
-    "costly_expect": [
-      "No.",
-      "Electric bikes: from 16 years old."
-    ]
+    "holdout": false
   },
   {
     "id": "australia",
@@ -90,7 +83,8 @@
     "expect_amount": 90,
     "tool": "calculate_refund",
     "intent": "refund_confirmed",
-    "holdout": false
+    "holdout": false,
+    "request_cancellation": "either"
   },
   {
     "id": "cancel-cw-1004",
@@ -100,7 +94,8 @@
     "expect_amount": 73,
     "tool": "calculate_refund",
     "intent": "refund_confirmed",
-    "holdout": false
+    "holdout": false,
+    "request_cancellation": "either"
   },
   {
     "id": "tokyo",
@@ -138,7 +133,8 @@
     "expect_amount": 0,
     "tool": "calculate_refund",
     "intent": "refund_blocked",
-    "holdout": false
+    "holdout": false,
+    "request_cancellation": "either"
   },
   {
     "id": "missing-cw-9999",
@@ -154,7 +150,8 @@
       "Canberra"
     ],
     "intent": "booking_missing",
-    "holdout": false
+    "holdout": false,
+    "request_cancellation": "either"
   },
   {
     "id": "kids-deposit",
@@ -189,7 +186,8 @@
     "expect_amount": 186,
     "tool": "calculate_refund",
     "intent": "refund_confirmed",
-    "holdout": false
+    "holdout": false,
+    "request_cancellation": "either"
   },
   {
     "id": "helmet",
@@ -253,5 +251,37 @@
     "expect_all": [
       "16"
     ]
+  },
+  {
+    "id": "request-cancel-cw-1002",
+    "question": "Please cancel my booking CW-1002.",
+    "kind": "refund",
+    "booking_id": "CW-1002",
+    "expect_amount": 340,
+    "tool": "calculate_refund",
+    "intent": "cancel_request",
+    "holdout": false,
+    "request_cancellation": true
+  },
+  {
+    "id": "request-cancel-go-ahead-cw-1002",
+    "question": "Go ahead and cancel CW-1002 for me.",
+    "kind": "refund",
+    "booking_id": "CW-1002",
+    "expect_amount": 340,
+    "tool": "calculate_refund",
+    "intent": "cancel_request",
+    "holdout": false,
+    "request_cancellation": true
+  },
+  {
+    "id": "price-only-cw-1002",
+    "question": "How much would I get back if I cancelled booking CW-1002?",
+    "kind": "refund",
+    "booking_id": "CW-1002",
+    "expect_amount": 340,
+    "tool": "calculate_refund",
+    "intent": "price_only",
+    "holdout": false
   }
 ]

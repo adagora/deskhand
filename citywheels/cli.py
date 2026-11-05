@@ -340,6 +340,7 @@ def run_parsed(argv: list[str], json_mode: bool) -> int:
                     "ok": True,
                     "provider": settings.provider,
                     "tool_trace": result.tool_trace,
+                    "write_intents": result.write_intents,
                 }
             )
         )
