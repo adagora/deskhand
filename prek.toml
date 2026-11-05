@@ -10,7 +10,7 @@ id = "end-of-file-fixer"
 
 [[repos.hooks]]
 id = "check-added-large-files"
-args = ["--enforce-all"]
+args = ["--enforce-all", "--maxkb=1024"]
 
 [[repos.hooks]]
 id = "check-json"
