@@ -9,10 +9,27 @@ python3 -m venv .venv && .venv/bin/pip install -r orchestration/requirements.txt
 CASEWORK_TOKEN=<supervisor> .venv/bin/python -m cockpit \
   --audit-log ../ai-audit/live/audit.jsonl --audit-cli ../ai-audit/dist/src/cli.js \
   --console-url "http://127.0.0.1:8793/#token=<console token>" \
-  --proxy-url http://127.0.0.1:8787 --evals-dir ../evalLOL/runs
+  --proxy-url http://127.0.0.1:8787 --evals-dir ../evalLOL/runs \
+  --evaluation-url http://127.0.0.1:4317
 ```
 
 It listens on `127.0.0.1:8799` only. With `CASEWORK_TOKEN` set it prints a URL that signs you in; without it the page asks for a token. The token stays in the browser tab, and a token in the address bar is accepted at any time. Every flag except `--home` and `--address` is optional, and a screen whose source is missing says so.
+
+## Related tools
+
+The sidebar has a group **Related tools** with two links: **Audit console** and **Evaluations**. Each link opens in a new tab. A link shows only when its address is set. `--console-url` sets the console link, and that link carries the console token. `--evaluation-url` sets the link to the IntentGauge dashboard. Both flags accept only http and https addresses. Only the operator, reviewer and deployer roles get the links. A customer token gets `staff_only`, as on every other call.
+
+## One command
+
+`python -m cockpit.stack` starts the operator side with one command: a Temporal development server, the worker, the cockpit, the Auditline console and, when you give an IntentGauge folder, the dashboard. The cockpit then has both sidebar links without more flags.
+
+```sh
+.venv/bin/python -m cockpit.stack --auditline ../ai-audit --intentgauge ../evalLOL
+```
+
+Build both folders first with `npm run build`. The first start seeds the case home and prints one token per role. Press Ctrl-C to stop everything. The console starts read-only. The ports are 8799 for the cockpit, 8793 for the console and 4317 for the dashboard.
+
+Add `--proxy-config gateway.json` to start the Auditline proxy too. It needs `OPENAI_API_KEY` in the environment and writes to the same audit log. Add `--address HOST:PORT` to use a Temporal server that already runs, and `--runs` for another evaluation folder. The command is for one machine. It is not a production deployment.
 
 ## Screens
 
@@ -46,6 +63,7 @@ Consent is the customer's act and has no button here.
 - The page builds no markup from data and sends a strict content policy. Evaluation reports open in a page with no network access, under a cookie that only reaches `/evals/`.
 - Reads of the audit log never write. Case writes go through the gateway, the same path as the command line. Grants are written to the grant store, which has no other interface yet.
 - A receipt carries the exact rule and inputs. SVG and JSON omit reviewer names and notes; the full HTML keeps them. The scanner is not anonymisation, so read what you share.
+- The sidebar links are built only from web addresses that you set on the command line, and the page opens them in a new tab with `noopener noreferrer`.
 - The console link carries the console token. Start the audit console without `--reviewer`, so it stays read-only. The workflow takes a review only from its own signal, so a verdict written in that console would not release a case.
 
 ## Limits

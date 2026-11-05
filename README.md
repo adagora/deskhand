@@ -89,7 +89,13 @@ Use this when you want the quote to be the same on every run, and when you want 
 
 The recording runs on a demo stack: a local Temporal server, the Auditline proxy, a scripted model and the made-up CityWheels data. It shows no real customer.
 
-`cockpit/` is one page for the person who runs the cases: what needs a decision, what happened in each case, who may act without a person, how the agent did in evaluation and whether the parts work. It approves or rejects a refund, closes an exception and revokes a grant through the same gateway as the command line. See `docs/cockpit.md`.
+`cockpit/` is one page for the person who runs the cases: what needs a decision, what happened in each case, who may act without a person, how the agent did in evaluation and whether the parts work. It approves or rejects a refund, closes an exception and revokes a grant through the same gateway as the command line. Its sidebar links to the Auditline console and to the IntentGauge dashboard, and one command starts all three:
+
+```sh
+.venv/bin/python -m cockpit.stack --auditline ../ai-audit --intentgauge ../evalLOL
+```
+
+See `docs/cockpit.md`.
 
 ## Cancellation workflow
 
