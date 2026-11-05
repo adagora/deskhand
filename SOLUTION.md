@@ -24,7 +24,7 @@ The env file is plain `KEY=value`. The names are `CITYWHEELS_PROVIDER`, `OPENAI_
 
 Tests, evaluation, and the offline CLI use `FakeModel` in `citywheels/fake_model.py`. It has to run here with no key and no network, and the refund figure has to be the one `calculate_refund` returned.
 
-The live OpenAI client is `OpenAIModel` in `citywheels/openai_model.py`. It posts to `/chat/completions` on `OPENAI_BASE_URL`, default `https://api.openai.com/v1`, model `OPENAI_MODEL`, default `gpt-4o-mini`, temperature 0. Gemini is `GeminiModel`, model `GEMINI_MODEL`, default `gemini-3.8-flash`. I called the provider APIs directly because tool calls are ordinary request fields, so one loop serves the fake model and both hosted models. I left LangChain and LangGraph out. The loop is small, and a framework would hide the tool cycle this assignment is meant to show.
+The live OpenAI client is `OpenAIModel` in `citywheels/openai_model.py`. It posts to `/chat/completions` on `OPENAI_BASE_URL`, default `https://api.openai.com/v1`, model `OPENAI_MODEL`, default `gpt-4o-mini`, temperature 0. Gemini is `GeminiModel`, model `GEMINI_MODEL`, default `gemini-3.8-flash`. I called the provider APIs directly because tool calls are ordinary request fields, so one loop serves the fake model and both hosted models. I left LangChain and LangGraph out. The loop is small, and a framework would hide the tool cycle that this project is meant to show.
 
 ## How the agent works
 
@@ -62,7 +62,7 @@ A second change came from the sample totals, before that test existed. Reading "
 
 `FakeModel` is a script, not a language model. It handles the eval questions and the same shapes, such as "cancel booking CW-..." and "what time do you open". A hours question with none of those words can miss the summer line and answer with the staff message, or quote a weaker section. Keyword overlap is the whole search. There are no embeddings.
 
-`eval/results.md` is still the fake-model score. The live check covered five questions on two providers, not the full set of 16.
+`eval/results.md` is still the fake-model score. The live model is scored by IntentGauge, which runs its own suite of 21 cases, three trials each, against `gpt-4o-mini`. The two latest runs passed 63 and 62 of 63 trials. The one miss was `hours-saturday`, where the model skipped the policy search.
 
 The agent does not store a cancellation, charge a card, or call a weather service. A storm warning is a staff decision.
 
@@ -70,6 +70,6 @@ Opening hours in the fake model always use June 2026, even when a test passes an
 
 ## What I would do next
 
-Run the same 16 questions through `gpt-4o-mini` and keep the failures in `eval/results.md`. Where the live model invents a figure or answers an off-topic question, change the prompt and run the set again.
+Keep the live runs in IntentGauge and read the failures of each run. Where the live model invents a figure or skips a tool, change the prompt and run the suite again.
 
 `calculate_refund` has an optional `at` for a what-if question about a later time. It cannot be earlier than now. Only the caller of `run_agent` can pass `now`; the model cannot move the clock itself.

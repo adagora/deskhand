@@ -60,7 +60,7 @@ def _known_amounts(computed: dict) -> set[Decimal]:
 
 
 # A costly miss can lose money, strand a rider, or invent a booking.
-# An ordinary miss is a missing detail. The assignment pass count is still one row per question.
+# An ordinary miss is a missing detail. The pass count is still one row per question.
 COSTLY_WEIGHT = 5
 ORDINARY_WEIGHT = 1
 

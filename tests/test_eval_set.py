@@ -30,7 +30,7 @@ def _load_eval():
 
 
 class EvalSetTests(unittest.TestCase):
-    def test_questions_cover_the_assignment(self):
+    def test_questions_cover_the_readme_examples(self):
         questions = json.loads((ROOT / "eval" / "questions.json").read_text(encoding="utf-8"))
         self.assertGreaterEqual(len(questions), 10)
         asked = [item["question"] for item in questions]
