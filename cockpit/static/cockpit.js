@@ -25,7 +25,7 @@ const ICONS = {
   inbox: [["path", { d: "M4 13l2.5-7h11L20 13M4 13v6h16v-6M4 13h5l1 2h4l1-2h5" }]],
 };
 const THEMES = ["auto", "light", "dark"];
-const S = { token: null, me: null, timer: null, todoCount: 0, busy: false, follow: null, run: null, shown: "", theme: "auto" };
+const S = { token: null, me: null, timer: null, todoCount: 0, busy: false, follow: null, run: null, shown: "", theme: "auto", replays: {} };
 
 function h(tag, attrs, ...kids) {
   const node = document.createElement(tag);
@@ -318,7 +318,7 @@ async function download(caseId, decisionId, format) {
 }
 
 function decisionBlock(caseId, d) {
-  const result = h("p", { class: "note", role: "status" });
+  const result = h("p", { class: "note", role: "status" }, S.replays[d.id] || "");
   const action = (work) => (event) => working(event.currentTarget, async () => { try { clearError(); await work(); } catch (error) { showError(error); } });
   return h("div", { class: "decision" },
     h("dl", { class: "kv" },
@@ -328,7 +328,8 @@ function decisionBlock(caseId, d) {
     h("div", { class: "row" },
       d.can_replay ? h("button", { class: "btn", type: "button", onclick: action(async () => {
         const r = await api(`/api/cases/${encodeURIComponent(caseId)}/replay`, { body: { decision: d.id } });
-        result.textContent = `${r.reproduced ? "Reproduced" : "NOT reproduced"} from the log alone. Chain ${r.chain_ok ? "intact" : "BROKEN"}. Anchor: ${r.anchor || "none"}. Result: ${JSON.stringify(r.outputs).slice(0, 240)}`;
+        S.replays[d.id] = `${r.reproduced ? "Reproduced" : "NOT reproduced"} from the log alone. Chain ${r.chain_ok ? "intact" : "BROKEN"}. Anchor: ${r.anchor || "none"}. Result: ${JSON.stringify(r.outputs).slice(0, 240)}`;
+        result.textContent = S.replays[d.id];
       }) }, "Replay from the log") : null,
       d.can_replay ? ["svg", "json", "html"].map((format) => h("button", { class: "btn", type: "button", onclick: action(() => download(caseId, d.id, format)) }, { svg: "Receipt (SVG)", json: "Receipt (JSON)", html: "Full receipt (HTML)" }[format])) : null,
       d.link ? h("a", { class: "btn", href: d.link, target: "_blank", rel: "noopener noreferrer" }, "Open in the audit console") : null),
