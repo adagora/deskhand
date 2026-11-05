@@ -76,6 +76,25 @@ class ArchitectureTests(unittest.TestCase):
                 top = module.split(".")[0]
                 self.assertNotIn(top, {"temporalio", "orchestration"}, f"{path.name} imports {module}")
 
+    def test_nothing_imports_the_cockpit(self):
+        for package in ("citywheels", "casework", "orchestration"):
+            for path in _sources(package):
+                for module in _imports(path):
+                    self.assertNotEqual(module.split(".")[0], "cockpit", f"{path.name} imports {module}")
+
+    def test_the_cockpit_server_and_readers_do_not_touch_temporal_or_the_agent(self):
+        for name in ("server.py", "evidence.py", "quality.py"):
+            for module in _imports(ROOT / "cockpit" / name):
+                self.assertNotIn(module.split(".")[0], {"temporalio", "citywheels", "orchestration"}, f"{name} imports {module}")
+
+    def test_the_cockpit_page_builds_no_markup_from_data(self):
+        script = (ROOT / "cockpit" / "static" / "cockpit.js").read_text(encoding="utf-8")
+        for forbidden in ("innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "eval(", "new Function"):
+            self.assertNotIn(forbidden, script, forbidden)
+        page = (ROOT / "cockpit" / "static" / "index.html").read_text(encoding="utf-8")
+        self.assertNotIn("<script>", page)
+        self.assertIn('lang="en"', page)
+
     def test_casework_has_one_money_rule(self):
         for path in _sources("casework"):
             text = path.read_text(encoding="utf-8")

@@ -98,6 +98,35 @@ class GrantBook:
             if changed.rowcount != 1:
                 raise Refusal("unknown_grant")
 
+    def listing(self, tenant: str, now: datetime) -> list[dict]:
+        with reading(self.path) as connection:
+            rows = connection.execute(
+                "SELECT g.*, a.activated_by AS activated_by, a.activated_at AS activated_at, a.grant_id AS active_id"
+                " FROM grant_record g LEFT JOIN active_grant a ON a.tenant=g.tenant AND a.grant_id=g.id"
+                " WHERE g.tenant=? ORDER BY g.approved_at DESC",
+                (tenant,),
+            ).fetchall()
+        listed = []
+        for row in rows:
+            if row["revoked_at"]:
+                state = "revoked"
+            elif datetime.fromisoformat(row["expires_at"]) <= now:
+                state = "expired"
+            elif row["active_id"]:
+                state = "active"
+            else:
+                state = "approved"
+            listed.append(
+                {
+                    "id": row["id"], "intent": row["intent"], "tier": row["tier"], "actions": json.loads(row["actions"]),
+                    "max_amount_minor": row["max_amount_minor"], "currency": row["currency"], "expires_at": row["expires_at"],
+                    "release": row["release"], "approved_by": row["reviewer"], "approved_at": row["approved_at"],
+                    "activated_by": row["activated_by"], "activated_at": row["activated_at"], "state": state,
+                    "revoked_by": row["revoked_by"], "revoked_at": row["revoked_at"], "revoke_reason": row["revoke_reason"],
+                }
+            )
+        return listed
+
     def authorize(
         self,
         *,

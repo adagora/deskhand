@@ -9,7 +9,7 @@ if str(ROOT) not in sys.path:
 
 from casework.messages import EXPLANATIONS, NEEDS_A_PERSON, PHASES, explain, phase_label
 
-SOURCES = [path for folder in ("casework", "orchestration", "citywheels") for path in (ROOT / folder).glob("*.py")]
+SOURCES = [path for folder in ("casework", "orchestration", "citywheels", "cockpit") for path in (ROOT / folder).glob("*.py")]
 TEXT = "\n".join(path.read_text(encoding="utf-8") for path in SOURCES if path.name != "messages.py")
 STAFF_CODES = {"backend_evidence_unavailable", "cancelled_refund_unsettled", "readback_mismatch", "evidence_unavailable"}
 

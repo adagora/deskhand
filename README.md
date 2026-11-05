@@ -81,6 +81,10 @@ Use this when you want the quote to be the same on every run, and when you want 
 
 `citywheels` prints a quote. It leaves the booking file unchanged, and it never charges a card.
 
+## Operator cockpit
+
+`cockpit/` is one page for the person who runs the cases: what needs a decision, what happened in each case, who may act without a person, how the agent did in evaluation and whether the parts work. It approves or rejects a refund, closes an exception and revokes a grant through the same gateway as the command line. See `docs/cockpit.md`.
+
 ## Cancellation workflow
 
 `orchestration/` is a second program in this repository. It runs one cancellation and refund on Temporal, against a fake booking store and a fake ledger on disk. `casework/` holds its checks on the standard library. The amount comes from `refund_for_booking`, the same function the quote uses. The model only asks for a cancellation through `request_cancellation`, which changes nothing.
