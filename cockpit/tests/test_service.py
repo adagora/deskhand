@@ -82,7 +82,7 @@ class CockpitServiceTests(unittest.IsolatedAsyncioTestCase):
     async def test_a_customer_token_cannot_use_the_cockpit(self):
         with self.assertRaises(Refusal) as seen:
             await self.service.cases(self.customer)
-        self.assertEqual(seen.exception.code, "forbidden")
+        self.assertEqual(seen.exception.code, "staff_only")
         with self.assertRaises(Refusal) as unknown:
             await self.service.cases("not-a-token")
         self.assertEqual(unknown.exception.code, "unauthenticated")
@@ -118,6 +118,7 @@ class CockpitServiceTests(unittest.IsolatedAsyncioTestCase):
                 await asyncio.sleep(0.1)
             self.assertEqual(finished["status"], "COMPLETED")
             self.assertEqual(finished["result"]["amount_minor"], 34000)
+            self.assertIsNone(finished["reason"])
             self.assertEqual((await self.service.cases(self.reviewer))[0]["booking_id"], "CW-1002")
             labels = [event["label"] for event in finished["timeline"]]
             for expected in ("Case opened", "Prepared the quote", "The customer confirmed the quote", "A reviewer approved the quote", "Issued the refund", "Read the result back"):

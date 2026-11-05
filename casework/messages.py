@@ -30,6 +30,7 @@ EXPLANATIONS = {
     "decision_not_in_case": ("That decision does not belong to this case.", "Open the decision from the case page."),
     "acknowledge_needed": ("A transact grant needs your confirmation.", "Tick the box that says you know nothing has been qualified, then try again."),
     "grant_limit_invalid": ("The limit is not a usable amount.", "Use a whole number of cents above zero and not above the cap."),
+    "staff_only": ("This page is for staff.", "Sign in with a reviewer, operator or deployer token. A customer token cannot open it."),
     "quote_changed": ("The quote changed while you were looking at it.", "Reload the case and check the new quote before you decide."),
     "invalid_grant": ("The grant is not valid for this action.", "Check the grant in the Authority screen."),
     "not_active": ("There is no active grant for this operation.", "A deployer must activate a grant."),

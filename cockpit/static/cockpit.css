@@ -80,6 +80,7 @@ h1 { font-size: 1.65rem; line-height: 1.2; font-weight: 700; letter-spacing: -0.
 
 .alert { display: flex; flex-direction: column; gap: 2px; margin-bottom: var(--gap); padding: 12px 16px; border: 1px solid var(--bad); border-left-width: 4px; border-radius: var(--radius-sm); background: var(--bad-soft); }
 .alert strong { font-weight: 650; }
+.notice.info { border-color: var(--info); background: var(--info-soft); }
 .notice { margin-bottom: var(--gap); padding: 10px 14px; border: 1px solid var(--ok); border-left-width: 4px; border-radius: var(--radius-sm); background: var(--ok-soft); }
 
 .card { min-width: 0; margin-bottom: var(--gap); padding: 20px 22px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }

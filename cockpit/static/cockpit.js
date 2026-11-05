@@ -228,6 +228,7 @@ async function casesPage() {
 const decide = (id, action, body) => api(`/api/cases/${encodeURIComponent(id)}/${action}`, { body }).then((value) => { S.follow = { id, left: 20 }; return value; });
 
 function confirmPanel(title, body, confirmLabel, onConfirm, danger) {
+  clearError();
   const cancel = () => { S.busy = false; render(); };
   const go = h("button", { class: `btn ${danger ? "danger" : "primary"}`, type: "button", onclick: async () => {
     go.textContent = "Working…";
@@ -254,7 +255,7 @@ async function casePage(id) {
         h("div", {}, h("dt", {}, "Review"), h("dd", {}, p.review_required ? "Required: above the automatic limit" : "Not required")),
         h("div", {}, h("dt", {}, "Quote digest"), h("dd", { class: "mono", title: p.digest }, short(p.digest)))] : null,
       c.staff ? h("div", {}, h("dt", {}, "Exception"), h("dd", {}, `${c.staff.message} ${c.staff.next}`)) : null,
-      c.result && c.result.code ? h("div", {}, h("dt", {}, "Reason"), h("dd", {}, c.staff ? c.staff.message : c.result.code)) : null,
+      c.result && c.result.code ? h("div", {}, h("dt", {}, "Reason"), h("dd", {}, c.reason ? c.reason.message : c.staff ? c.staff.message : c.result.code)) : null,
       h("div", {}, h("dt", {}, "Opened"), h("dd", {}, when(c.started_at)))));
   const settled = !c.can_review && c.needs !== "review" && c.phase !== "waiting-for-review" && !c.resolve_kinds.length;
   if (S.follow && S.follow.id === id && settled) S.follow = null;
@@ -274,6 +275,9 @@ async function casePage(id) {
       h("div", { class: "row" }, c.resolve_kinds.map((kind) => h("button", { class: kind === "close" ? "btn" : "btn primary", type: "button",
         onclick: () => confirmPanel(kind === "close" ? "Close this exception?" : "Complete the refund?", kind === "close" ? "The case ends without a refund. Do this only when nothing is owed." : "A supervisor completes the refund after a recheck. There is no rollback.", kind === "close" ? "Close exception" : "Complete refund", () => decide(id, "resolve", { kind }), kind === "close") }, kind === "close" ? "Close exception…" : "Complete refund…")))));
   }
+  const roles = S.me ? S.me.roles.join(", ") : "";
+  if (c.needs === "staff" && !c.resolve_kinds.length) nodes.push(h("p", { class: "notice info", role: "note" }, `Resolving an exception needs the operator role. You are signed in as ${roles}.`));
+  if (c.needs === "review" && !c.can_review) nodes.push(h("p", { class: "notice info", role: "note" }, `Reviewing a refund needs the reviewer role, and not the customer's own. You are signed in as ${roles}.`));
   nodes.push(head);
   nodes.push(h("section", { class: "card" }, h("h2", {}, "What happened"),
     c.timeline.length ? h("ol", { class: "timeline" }, c.timeline.map((e) => h("li", {}, h("time", { datetime: e.at, title: e.at }, new Date(e.at).toLocaleTimeString()), h("span", { class: `mark ${e.state}`, "aria-label": e.state === "ok" ? "done" : e.state === "warn" ? "note" : "failed" }, e.state === "ok" ? "✓" : e.state === "warn" ? "!" : "×"), h("div", {}, e.label, e.detail ? h("small", {}, e.detail) : null)))) : empty("No events yet")));
@@ -347,7 +351,7 @@ async function authorityPage() {
       a.can_activate && g.state === "approved" ? h("button", { class: "btn small primary", type: "button", "aria-label": `Activate the ${g.tier} grant for ${g.intent}`, onclick: () => confirmPanel("Activate this grant?", `The ${g.tier} grant for ${g.intent}, up to ${money(g.max_amount_minor, g.currency)}, replaces the active one. ${g.tier === "transact" ? "From now on the desk may write refunds within this limit. Nothing has been qualified." : ""}`, "Activate", () => api(`/api/authority/${g.id}/activate`, { body: {} })) }, "Activate…") : null,
       a.can_approve && (g.state === "active" || g.state === "approved") ? h("button", { class: "btn small", type: "button", "aria-label": `Replace the grant for ${g.intent} with a new one`, onclick: () => form.prefill(g) }, "Replace…") : null,
       a.can_revoke && (g.state === "active" || g.state === "approved") ? h("button", { class: "btn small danger", type: "button", "aria-label": `Revoke the grant for ${g.intent}`, onclick: () => {
-        const reason = h("input", { id: "reason", type: "text", maxlength: "300", required: true, "aria-label": "Reason for revoking" });
+        const reason = h("input", { id: "reason", type: "text", maxlength: "300", required: true, placeholder: "Why are you revoking it?", "aria-label": "Reason for revoking" });
         confirmPanel("Revoke this grant?", "The operation falls back to a person until a new grant is activated.", "Revoke", async () => { if (!reason.value.trim()) throw Object.assign(new Error("A reason is needed."), { data: { message: "A reason is needed.", next: "Say why you are revoking the grant." } }); await api(`/api/authority/${g.id}/revoke`, { body: { reason: reason.value } }); }, true);
         document.querySelector(".panel p").after(reason); reason.focus();
       } }, "Revoke…") : null))));
@@ -424,13 +428,13 @@ async function qualityPage() {
     h("td", { class: "amount", "data-label": "Lower bound" }, r.pass_rate_lower_bound === null || r.pass_rate_lower_bound === undefined ? "—" : `${Math.round(r.pass_rate_lower_bound * 100)}%`),
     cell("Critical", r.critical_failures ? pill("bad", `${r.critical_failures} critical`) : pill("ok", "none")),
     cell("Needs a look", r.flaky_cases.length || r.failing_cases.length ? [r.failing_cases.length ? h("div", {}, h("strong", {}, "Failing: "), r.failing_cases.join(", ")) : null, r.flaky_cases.length ? h("div", {}, h("strong", {}, "Flaky: "), r.flaky_cases.join(", ")) : null] : "—"),
-    h("td", { class: "actions", "data-label": "" }, h("div", { class: "btn-row" }, h("button", { class: "btn small", type: "button", "aria-pressed": String(S.run === r.run), onclick: () => { S.run = S.run === r.run ? null : r.run; render(); } }, S.run === r.run ? "Hide cases" : "Cases"),
+    h("td", { class: "actions", "data-label": "" }, h("div", { class: "btn-row" }, h("button", { class: "btn small", type: "button", "aria-pressed": String(S.run === r.run), onclick: () => { S.run = S.run === r.run ? null : r.run; render().then(() => { const box = document.getElementById("run-detail"); if (box) box.scrollIntoView({ behavior: "smooth", block: "start" }); }); } }, S.run === r.run ? "Hide cases" : "Cases"),
       r.dashboard ? h("a", { class: "btn small", href: `/evals/${encodeURIComponent(r.run)}/${r.dashboard}`, target: "_blank", rel: "noopener noreferrer" }, "Full report") : null))));
   const detail = S.run ? (await api(`/api/quality/${encodeURIComponent(S.run)}`)).cases : null;
   return h("div", {}, h("div", { class: "banner warn", role: "note" }, "Not qualified. These runs use development cases and no human-scored evidence. A passing run shows the checks held; it does not show the agent is ready to act alone."),
     h("section", { class: "card" }, h("h2", {}, "Latest runs"),
       runs.length ? table("Evaluation runs table", ["When", "Model", "Trials passed", "Lower bound*", "Critical", "Needs a look", ""], rows) : empty("No evaluation run", "None was found for this application.")),
-    detail ? h("section", { class: "card" }, h("h2", {}, `Cases in ${S.run}`),
+    detail ? h("section", { class: "card", id: "run-detail" }, h("h2", {}, `Cases in ${S.run}`),
       table("Cases of the run", ["Case", "Passed", "What failed"], detail.map((c) => h("tr", {}, cell("Case", c.case), cell("Passed", pill(c.passed === c.trials ? "ok" : c.passed === 0 ? "bad" : "warn", `${c.passed} of ${c.trials}`)),
         cell("What failed", Object.keys(c.failed_checks).length ? Object.entries(c.failed_checks).map(([name, reason]) => h("div", {}, h("strong", {}, name), ": ", reason)) : "—"))))) : null);
 }

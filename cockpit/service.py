@@ -92,7 +92,7 @@ class CockpitService:
     def principal(self, token: str, roles=ROLES) -> Principal:
         principal = self.home.directory.authenticate(token)
         if not set(principal.roles) & set(roles):
-            raise Refusal("forbidden")
+            raise Refusal("staff_only" if roles is ROLES else "forbidden")
         return principal
 
     async def me(self, token: str) -> dict:
@@ -436,7 +436,7 @@ class CockpitService:
             "started_at": _iso(workflow.start_time),
             "closed_at": _iso(workflow.close_time),
             "phase": "unknown", "phase_label": "Not answering", "proposal": None, "staff_code": None,
-            "staff": None, "needs": None, "result": None, "booking_id": None,
+            "staff": None, "needs": None, "result": None, "booking_id": None, "reason": None,
         }
         if running:
             try:
@@ -452,6 +452,7 @@ class CockpitService:
                 finished = self.client.get_workflow_handle(workflow.id, run_id=workflow.run_id, result_type=CaseResult)
                 result: CaseResult = await asyncio.wait_for(finished.result(), QUERY_TIMEOUT_S)
                 row["result"] = asdict(result)
+                row["reason"] = explain(result.code) if result.code else None
                 row["phase"] = result.status
                 row["phase_label"] = phase_label(result.status)
             except Exception:

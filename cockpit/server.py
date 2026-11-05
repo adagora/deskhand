@@ -26,7 +26,7 @@ EVAL_CSP = (
     "base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 )
 STATUS = {
-    "unauthenticated": 401, "forbidden": 403, "case_not_accessible": 404, "unknown_grant": 404, "not_found": 404,
+    "unauthenticated": 401, "forbidden": 403, "staff_only": 403, "case_not_accessible": 404, "unknown_grant": 404, "not_found": 404,
 }
 MAX_BODY = 4096
 NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")

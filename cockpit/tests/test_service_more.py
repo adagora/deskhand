@@ -134,6 +134,21 @@ class MoreServiceTests(unittest.IsolatedAsyncioTestCase):
                 await asyncio.sleep(0.1)
         self.assertEqual((rows[0]["needs"], rows[0]["booking_id"]), ("staff", "CW-1001"))
 
+    async def test_a_rejected_case_says_why_in_a_sentence(self):
+        async with build_worker(self.client, CaseActivities(self.home.desk(), self.home.staff), self.queue):
+            case_id = await self._open()
+            digest = (await self.gateway.quote(self.customer, case_id)).digest()
+            await self.gateway.consent(self.customer, case_id, digest)
+            await self.service.review(self.supervisor, case_id, "rejected", digest)
+            for _ in range(100):
+                detail = await self.service.case(self.supervisor, case_id)
+                if detail["status"] == "COMPLETED":
+                    break
+                await asyncio.sleep(0.1)
+        self.assertEqual(detail["result"]["code"], "operation_rejected")
+        self.assertEqual(detail["reason"]["message"], "A reviewer rejected the quote.")
+        self.assertEqual(detail["phase"], "rejected")
+
     async def test_closed_exceptions_are_kept_for_reading(self):
         tenant = "citywheels"
         self.home.staff.open(tenant, "case-x", None, "staff_required_for_claim", "claims-team", "2026-11-05T10:00:00+00:00")
