@@ -9,7 +9,7 @@ This repository holds the help-desk application. It has three layers. Dependenci
 | `orchestration/` | Waits and orders the steps on Temporal. With `cockpit/`, it is the only package that imports `temporalio` | `temporalio` |
 | `cockpit/` | The operator page. Reads Temporal, the stores, the ai-audit log and IntentGauge reports, and acts only through the gateway. Nothing imports it | `temporalio` |
 
-The operator page is described in [cockpit.md](cockpit.md). ai-audit is a separate product. [ai-audit ADR 0066](https://github.com/adagora/ai-audit/blob/main/docs/adr/0066-help-desk-repository-and-temporal-write-intents.md) records this split.
+The operator page is described in [cockpit.md](cockpit.md). The gateway, Auditline (repository `ai-audit`), is a separate product. [ai-audit ADR 0066](https://github.com/adagora/ai-audit/blob/main/docs/adr/0066-help-desk-repository-and-temporal-write-intents.md) records this split.
 
 ## The flow
 

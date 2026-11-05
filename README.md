@@ -1,4 +1,6 @@
-# CityWheels help desk
+# Deskhand
+
+**A help-desk agent that answers from facts and hands every consequential step to a person.** It quotes refunds from code and not from the model, runs a cancellation as a durable case with the customer's consent and a reviewer's approval, and gives the operator one cockpit to manage it. The example shop is CityWheels, a made-up bike rental. Its gateway is [Auditline](https://github.com/adagora/ai-audit) and its evaluation is IntentGauge.
 
 Answer one customer question for a made-up bike rental shop. Refund amounts come from code. The model is not allowed to invent the figure.
 

@@ -1,5 +1,5 @@
 "use strict";
-const BRAND = "CaseDesk";
+const BRAND = "Deskhand";
 const NAV = [["todo", "To do"], ["cases", "Cases"], ["conversations", "Conversations"], ["authority", "Authority"], ["rules", "Rules"], ["quality", "Quality"], ["health", "Health"]];
 const TITLES = {
   todo: ["To do", "What needs a person now."],

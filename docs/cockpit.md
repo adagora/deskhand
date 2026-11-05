@@ -1,6 +1,6 @@
-# The operator cockpit
+# The Deskhand cockpit
 
-One page where a person manages the cancellation cases: what needs a decision, what happened in each case, which conversations never became a case, who may act without a person, what rules are in force, how the agent did in evaluation, and whether the parts that run the cases work. It is part of this application. The audit gateway and IntentGauge stay the detail views it links to ([ADR 0068 of the gateway](https://github.com/adagora/ai-audit/blob/main/docs/adr/0068-correlation-and-the-application-cockpit.md)).
+One page where a person manages the cancellation cases: what needs a decision, what happened in each case, which conversations never became a case, who may act without a person, what rules are in force, how the agent did in evaluation, and whether the parts that run the cases work. It is part of this application. Auditline (the audit gateway, repository `ai-audit`) and IntentGauge stay the detail views it links to ([ADR 0068 of the gateway](https://github.com/adagora/ai-audit/blob/main/docs/adr/0068-correlation-and-the-application-cockpit.md)).
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -r orchestration/requirements.txt
