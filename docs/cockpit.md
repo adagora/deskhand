@@ -40,6 +40,7 @@ Consent is the customer's act and has no button here. Approving and activating a
 - Every call needs `Authorization: Bearer <token>`. A token without the operator, reviewer or deployer role gets `forbidden`. A POST must be small JSON.
 - The page builds no markup from data and sends a strict content policy. Evaluation reports open in a page with no network access, under a cookie that only reaches `/evals/`.
 - Reads of the audit log never write. Writes go through the gateway, the same path as the command line.
+- Start the ai-audit console without `--reviewer`, so it stays read-only. The workflow takes a review only from its own signal, so a verdict written in that console would not release a case.
 
 ## Limits
 
