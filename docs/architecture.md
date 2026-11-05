@@ -9,7 +9,7 @@ This repository holds the help-desk application. It has three layers. Dependenci
 | `orchestration/` | Waits and orders the steps on Temporal. With `cockpit/`, it is the only package that imports `temporalio` | `temporalio` |
 | `cockpit/` | The operator page. Reads Temporal, the stores, the ai-audit log and IntentGauge reports, and acts only through the gateway. Nothing imports it | `temporalio` |
 
-The operator page is described in [cockpit.md](cockpit.md). The gateway, Auditline (repository `ai-audit`), is a separate product. [ai-audit ADR 0066](https://github.com/adagora/ai-audit/blob/main/docs/adr/0066-help-desk-repository-and-temporal-write-intents.md) records this split.
+The operator page is described in [cockpit.md](cockpit.md). The gateway, Auditline (repository `auditline`, formerly `ai-audit`), is a separate product. [ai-audit ADR 0066](https://github.com/adagora/auditline/blob/main/docs/adr/0066-help-desk-repository-and-temporal-write-intents.md) records this split.
 
 ## The flow
 
@@ -80,7 +80,7 @@ A signal carries an actor name, and the workflow trusts its sender. Anyone with 
 The application reaches ai-audit in two optional ways. Neither is on the money path.
 
 - **Model traffic.** Set `OPENAI_BASE_URL` to the proxy and `OPENAI_API_KEY` to an `aia-` client key. Keep the provider key in the proxy. The `--provider gemini` path does not go through the proxy, because the proxy speaks the OpenAI and Anthropic APIs.
-- **Decisions.** Set `AI_AUDIT_CLI` to `dist/src/cli.js` of an ai-audit build, and `AI_AUDIT_LOG` to a log path. Each case then records `decide` with `policies/refund.json`, `approve` for the review, and `effect` for the outcome. `ai-audit replay` and `ai-audit console` read them. A QDL total that differs from `refund_for_booking` stops the case as `rule_disagreement`, before any write.
+- **Decisions.** Set `AUDITLINE_CLI` to `dist/src/cli.js` of an Auditline build, and `AUDITLINE_LOG` to a log path. The older `AI_AUDIT_CLI` and `AI_AUDIT_LOG` still work. Each case then records `decide` with `policies/refund.json`, `approve` for the review, and `effect` for the outcome. `ai-audit replay` and `ai-audit console` read them. A QDL total that differs from `refund_for_booking` stops the case as `rule_disagreement`, before any write.
 
 Without those variables, a result says `"evidence": "not-recorded"`. In redact mode the proxy masks email addresses and phone numbers, including the shop's own contacts in the system prompt. Start it with `--allow-hashes policies/proxy-allow.json` to let those two public values through.
 

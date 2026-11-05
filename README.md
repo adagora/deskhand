@@ -1,11 +1,11 @@
 # Deskhand
 
-**A help-desk agent that answers from facts and hands every consequential step to a person.** It quotes refunds from code and not from the model, runs a cancellation as a durable case with the customer's consent and a reviewer's approval, and gives the operator one cockpit to manage it. The example shop is CityWheels, a made-up bike rental. Its gateway is [Auditline](https://github.com/adagora/ai-audit) and its evaluation is IntentGauge.
+**A help-desk agent that answers from facts and hands every consequential step to a person.** It quotes refunds from code and not from the model, runs a cancellation as a durable case with the customer's consent and a reviewer's approval, and gives the operator one cockpit to manage it. The example shop is CityWheels, a made-up bike rental. Its gateway is [Auditline](https://github.com/adagora/auditline) and its evaluation is IntentGauge.
 
 Answer one customer question for a made-up bike rental shop. Refund amounts come from code. The model is not allowed to invent the figure.
 
 ```sh
-git clone https://github.com/adagora/help-desk-agent.git
+git clone https://github.com/adagora/deskhand.git
 cd help-desk-agent
 python3 -m citywheels --provider fake "I want to cancel booking CW-1002. How much will I get back?"
 ```
@@ -104,7 +104,7 @@ Use Python 3.13 for that package. `python3 -m unittest discover -s tests` stays 
 ### Clone
 
 ```sh
-git clone https://github.com/adagora/help-desk-agent.git
+git clone https://github.com/adagora/deskhand.git
 cd help-desk-agent
 python3 -m citywheels --version
 ```
@@ -112,7 +112,7 @@ python3 -m citywheels --version
 `--version` prints `1`. That is the output contract, not a packaging version. `citywheels.__version__` is `1.0.0`. Tag `v1.0.0` is the release before this README. `main` is the commit you are reading.
 
 ```sh
-git clone --branch v1.0.0 https://github.com/adagora/help-desk-agent.git
+git clone --branch v1.0.0 https://github.com/adagora/deskhand.git
 ```
 
 ### Interpreter you already have

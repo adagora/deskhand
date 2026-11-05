@@ -102,7 +102,8 @@ class AuditCli:
 
 
 def evidence_from_environment(environment=os.environ):
-    cli, log = environment.get("AI_AUDIT_CLI"), environment.get("AI_AUDIT_LOG")
+    cli = environment.get("AUDITLINE_CLI") or environment.get("AI_AUDIT_CLI")
+    log = environment.get("AUDITLINE_LOG") or environment.get("AI_AUDIT_LOG")
     if not cli or not log:
         return NoEvidence()
     return AuditCli(command=("node", cli), log=Path(log))

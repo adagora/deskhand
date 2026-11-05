@@ -19,13 +19,18 @@ DEFAULT_HOME = Path("live/casework")
 DEFAULT_ADDRESS = "localhost:7233"
 
 
+def _from_environment(*names: str) -> Path | None:
+    value = next((os.environ[name] for name in names if os.environ.get(name)), None)
+    return Path(value) if value else None
+
+
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(prog="python -m cockpit", description="The operator cockpit for CityWheels cases.")
     root.add_argument("--home", type=Path, default=DEFAULT_HOME, help="Folder made by `python -m orchestration seed`.")
     root.add_argument("--address", default=DEFAULT_ADDRESS, help="Temporal server address.")
     root.add_argument("--port", type=int, default=8799)
-    root.add_argument("--audit-log", type=Path, default=os.environ.get("AI_AUDIT_LOG") and Path(os.environ["AI_AUDIT_LOG"]), help="ai-audit log to join by correlation id.")
-    root.add_argument("--audit-cli", type=Path, default=os.environ.get("AI_AUDIT_CLI") and Path(os.environ["AI_AUDIT_CLI"]), help="dist/src/cli.js of an ai-audit build, used to verify the chain.")
+    root.add_argument("--audit-log", type=Path, default=_from_environment("AUDITLINE_LOG", "AI_AUDIT_LOG"), help="ai-audit log to join by correlation id.")
+    root.add_argument("--audit-cli", type=Path, default=_from_environment("AUDITLINE_CLI", "AI_AUDIT_CLI"), help="dist/src/cli.js of an ai-audit build, used to verify the chain.")
     root.add_argument("--console-url", help="Address of the ai-audit console, linked from a case.")
     root.add_argument("--proxy-url", help="Address of the ai-audit proxy, checked on the Health screen.")
     root.add_argument("--evals-dir", type=Path, help="IntentGauge runs folder to read evaluation reports from.")

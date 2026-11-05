@@ -44,7 +44,7 @@ EXPLANATIONS = {
     "resolution_forbidden": ("Only a supervisor may complete this refund.", "Use a token with the reviewer and operator roles."),
     "backend_evidence_unavailable": ("The booking system did not answer, so no success is claimed.", "Check the booking system. The case waits for a person."),
     "cancelled_refund_unsettled": ("The booking is cancelled but the refund did not settle.", "A supervisor can complete the refund after a recheck. There is no rollback."),
-    "evidence_unavailable": ("The audit evidence could not be kept.", "Check AI_AUDIT_CLI and AI_AUDIT_LOG. Nothing was written."),
+    "evidence_unavailable": ("The audit evidence could not be kept.", "Check AUDITLINE_CLI and AUDITLINE_LOG. Nothing was written."),
     "completed": ("The refund is settled and was read back.", "Nothing to do."),
     "rejected": ("A reviewer rejected the quote.", "Nothing was written."),
     "refused": ("The desk refused the request.", "See the reason on the case."),
