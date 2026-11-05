@@ -79,6 +79,18 @@ class RuleConformanceTests(unittest.TestCase):
                 self.assertEqual(proposal.amount_minor, refund_minor(booking, FIXED_NOW))
                 self.assertIsNotNone(evidence.decide(proposal, booking).id, rental)
 
+    def test_the_decision_carries_the_correlation_id_of_the_case(self):
+        with tempfile.TemporaryDirectory() as folder:
+            log = Path(folder) / "audit.jsonl"
+            evidence = AuditCli(("node", str(CLI)), log)
+            home, _ = seed_home(Path(folder) / "home")
+            desk = home.desk(business_clock=lambda: FIXED_NOW, release=lambda: "release")
+            booking = home.backend.owned(SCOPE, "CW-1002")
+            proposal = desk.propose(SCOPE, "case-1", "CW-1002", correlation="conv-0123abcd")
+            decision = evidence.decide(proposal, booking)
+            record = next(item for item in log_records(log) if item["id"] == decision.id)
+            self.assertEqual(record["correlation"], "conv-0123abcd")
+
     def test_a_changed_qdl_rule_is_refused_as_a_disagreement(self):
         with tempfile.TemporaryDirectory() as folder:
             policy = json.loads(DEFAULT_POLICY.read_text(encoding="utf-8"))
@@ -166,10 +178,12 @@ def _free_port() -> int:
 class _FakeProvider(BaseHTTPRequestHandler):
     seen: list[dict] = []
     authorization: list[str] = []
+    headers_seen: list[dict] = []
 
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers["content-length"])))
         type(self).seen.append(body)
+        type(self).headers_seen.append(dict(self.headers.items()))
         type(self).authorization.append(self.headers.get("authorization", ""))
         first_turn = not any(message["role"] == "tool" for message in body["messages"])
         message = (
@@ -201,7 +215,7 @@ class ProxyTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.log = Path(self.tmp.name) / "audit.jsonl"
-        _FakeProvider.seen, _FakeProvider.authorization = [], []
+        _FakeProvider.seen, _FakeProvider.authorization, _FakeProvider.headers_seen = [], [], []
         self.provider = HTTPServer(("127.0.0.1", 0), _FakeProvider)
         threading.Thread(target=self.provider.serve_forever, daemon=True).start()
         self.addCleanup(self.provider.server_close)
@@ -240,6 +254,17 @@ class ProxyTests(unittest.TestCase):
         self.assertEqual(self._wait_for_calls(2), 2)
         self.assertEqual(cli("verify", "--log", str(self.log)).returncode, 0)
         self.assertNotIn("ada@example.com", self.log.read_text(encoding="utf-8"))
+
+    def test_the_correlation_header_reaches_the_log_and_not_the_provider(self):
+        model = OpenAIModel(
+            "aia-fake-client", "gpt-4o-mini", f"http://127.0.0.1:{self.port}/v1",
+            headers={"x-audit-correlation": "conv-0123abcd"},
+        )
+        run_agent("What do I get back for CW-1002?", model)
+        self.assertEqual(self._wait_for_calls(2), 2)
+        calls = [record for record in log_records(self.log) if record["kind"] == "llm-call"]
+        self.assertEqual({call.get("correlation") for call in calls}, {"conv-0123abcd"})
+        self.assertNotIn("x-audit-correlation", json.dumps(_FakeProvider.headers_seen))
 
     def _wait_for_calls(self, count: int) -> int:
         found = 0

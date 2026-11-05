@@ -36,7 +36,7 @@ class Gateway:
         self.prefix = prefix
 
     async def open_case(
-        self, token: str, booking_id: str, *, storm_claim: bool = False, timing: Timing | None = None
+        self, token: str, booking_id: str, *, storm_claim: bool = False, timing: Timing | None = None, correlation: str = ""
     ) -> str:
         principal = self._customer(token)
         case_id = case_id_for(principal.id, booking_id)
@@ -47,6 +47,7 @@ class Gateway:
             booking_id=booking_id,
             storm_claim=storm_claim,
             timing=timing or Timing(),
+            correlation=correlation,
         )
         await self.client.start_workflow(
             CancelRefund.run,

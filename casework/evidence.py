@@ -63,6 +63,7 @@ class AuditCli:
             reply = self._run(
                 "decide", "--policy", str(self.policy), "--inputs", str(inputs),
                 "--system-id", self.system_id, "--use-case", self.use_case,
+                *(["--correlation", proposal.correlation] if proposal.correlation else []),
             )
         action = _proposed_action(reply.get("outputs") or [])
         if reply.get("status") != "completed" or action is None:

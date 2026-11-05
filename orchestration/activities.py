@@ -38,7 +38,7 @@ class CaseActivities:
             if settled is not None:
                 return Prepared(settled=settled)
             proposal = self.desk.propose(
-                scope, request.case_id, request.booking_id, request.intent, request.storm_claim
+                scope, request.case_id, request.booking_id, request.intent, request.storm_claim, request.correlation
             )
         except Refusal as refusal:
             return Prepared(code=refusal.code)

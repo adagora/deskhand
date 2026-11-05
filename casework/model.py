@@ -53,6 +53,7 @@ class Proposal:
     business_at: str
     created_at: str
     expires_at: str
+    correlation: str = ""
 
     def digest(self) -> str:
         return evidence_digest(asdict(self))
@@ -111,6 +112,7 @@ class CaseRequest:
     intent: str = "citywheels.cancellation"
     storm_claim: bool = False
     timing: Timing = field(default_factory=Timing)
+    correlation: str = ""
 
 
 @dataclass(frozen=True)

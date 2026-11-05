@@ -55,6 +55,7 @@ class Desk:
         booking_id: str,
         intent: str = "citywheels.cancellation",
         storm_claim: bool = False,
+        correlation: str = "",
     ) -> Proposal:
         if not named(case_id) or not named(intent):
             raise Refusal("invalid_proposal")
@@ -86,6 +87,7 @@ class Desk:
             business_at=business_at.isoformat(),
             created_at=now.isoformat(),
             expires_at=(now + self.quote_ttl).isoformat(),
+            correlation=correlation,
             **identity,
         )
 

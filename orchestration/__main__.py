@@ -6,10 +6,12 @@ import os
 import sys
 import tempfile
 from pathlib import Path
+from uuid import uuid4
 
 from temporalio.client import Client
 from temporalio.testing import WorkflowEnvironment
 
+from casework.messages import explain
 from casework.model import CustomerScope, Refusal
 from casework.view import BackendView
 from citywheels.agent import run_agent
@@ -41,8 +43,19 @@ def _token() -> str:
     return token
 
 
+def _home(args):
+    if not (Path(args.home) / "identities.json").exists():
+        raise Refusal("home_not_seeded")
+    return open_home(args.home)
+
+
 async def _gateway(args) -> Gateway:
-    return Gateway(await Client.connect(args.address), open_home(args.home).directory)
+    home = _home(args)
+    try:
+        client = await Client.connect(args.address)
+    except (RuntimeError, OSError):
+        raise Refusal("temporal_unreachable") from None
+    return Gateway(client, home.directory)
 
 
 async def _quote_when_ready(gateway: Gateway, token: str, case_id: str):
@@ -57,10 +70,13 @@ async def _quote_when_ready(gateway: Gateway, token: str, case_id: str):
 async def ask_and_open_cases(gateway: Gateway, token: str, question: str, model, backend) -> dict:
     principal = gateway.directory.authenticate(token)
     view = BackendView(backend, CustomerScope(principal.tenant, principal.id))
+    correlation = "conv-" + uuid4().hex[:24]
+    if hasattr(model, "headers"):
+        model.headers["x-audit-correlation"] = correlation
     result = await asyncio.to_thread(run_agent, question, model, view=view)
     cases = []
     for intent in result.write_intents:
-        case_id = await gateway.open_case(token, intent["booking_id"])
+        case_id = await gateway.open_case(token, intent["booking_id"], correlation=correlation)
         proposal, phase = await _quote_when_ready(gateway, token, case_id)
         cases.append({
             "case_id": case_id,
@@ -73,7 +89,7 @@ async def ask_and_open_cases(gateway: Gateway, token: str, question: str, model,
                 "review_required": proposal.review_required,
             },
         })
-    return {"answer": result.answer, "cases": cases}
+    return {"answer": result.answer, "correlation": correlation, "cases": cases}
 
 
 async def demo() -> int:
@@ -115,15 +131,17 @@ async def run_command(args) -> int:
     if args.command == "worker":
         return await worker(args)
     if args.command == "queue":
-        principal = open_home(args.home).directory.authenticate(_token())
+        token = _token()
+        home = _home(args)
+        principal = home.directory.authenticate(token)
         if "operator" not in principal.roles:
             raise Refusal("forbidden")
-        _emit([dataclasses.asdict(item) for item in open_home(args.home).staff.items(principal.tenant, args.status)])
+        _emit([dataclasses.asdict(item) for item in home.staff.items(principal.tenant, args.status)])
         return 0
-    gateway = await _gateway(args)
     token = _token()
+    gateway = await _gateway(args)
     if args.command == "ask":
-        _emit(await ask_and_open_cases(gateway, token, args.question, build_model(current(args.provider)), open_home(args.home).backend))
+        _emit(await ask_and_open_cases(gateway, token, args.question, build_model(current(args.provider)), _home(args).backend))
     elif args.command == "status":
         handle = gateway.handle_for(token, args.case)
         _emit({
@@ -177,7 +195,7 @@ def main() -> int:
     try:
         return asyncio.run(run_command(args))
     except Refusal as refusal:
-        print(json.dumps({"ok": False, "code": refusal.code}), file=sys.stderr)
+        print(json.dumps({"ok": False, **explain(refusal.code)}), file=sys.stderr)
         return 1
     except KeyboardInterrupt:
         return 0

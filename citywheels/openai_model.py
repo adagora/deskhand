@@ -9,10 +9,11 @@ from citywheels.settings import Settings
 
 
 class OpenAIModel:
-    def __init__(self, api_key: str, model: str, base_url: str):
+    def __init__(self, api_key: str, model: str, base_url: str, headers: dict | None = None):
         self.api_key = api_key
         self.model = model
         self.base_url = base_url.rstrip("/")
+        self.headers = dict(headers or {})
 
     @classmethod
     def from_settings(cls, settings: Settings) -> "OpenAIModel":
@@ -34,6 +35,7 @@ class OpenAIModel:
             headers={
                 "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json",
+                **self.headers,
             },
             method="POST",
         )
