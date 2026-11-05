@@ -99,6 +99,14 @@ class _Handler(BaseHTTPRequestHandler):
             return self._send_json(self.server.call(service.case(token, parts[1])))
         if parts == ["authority"]:
             return self._send_json(self.server.call(service.authority(token)))
+        if parts == ["conversations"]:
+            return self._send_json(self.server.call(service.conversations(token)))
+        if parts == ["rules"]:
+            return self._send_json(self.server.call(service.rules(token)))
+        if parts == ["staff"]:
+            return self._send_json({"items": self.server.call(service.staff_history(token))})
+        if len(parts) == 2 and parts[0] == "quality" and RUN.match(parts[1]):
+            return self._send_json(self.server.call(service.quality_run(token, parts[1])))
         if parts == ["quality"]:
             return self._send_json(self.server.call(service.quality(token)))
         if parts == ["health"]:
@@ -123,6 +131,20 @@ class _Handler(BaseHTTPRequestHandler):
                 return self._send_json(self.server.call(service.review(token, parts[1], str(body.get("verdict", "")), str(body.get("digest", "")))))
             if parts[2] == "resolve":
                 return self._send_json(self.server.call(service.resolve(token, parts[1], str(body.get("kind", "")))))
+        if len(parts) == 3 and parts[0] == "cases" and NAME.match(parts[1]) and parts[2] in ("replay", "receipt"):
+            decision = str(body.get("decision", ""))
+            if not NAME.match(decision):
+                raise Refusal("decision_not_in_case")
+            if parts[2] == "replay":
+                return self._send_json(self.server.call(service.replay(token, parts[1], decision)))
+            content, kind, filename = self.server.call(service.receipt(token, parts[1], decision, str(body.get("format", ""))))
+            return self._send(200, content, kind, "default-src 'none'; sandbox", {"Content-Disposition": f'attachment; filename="{filename}"'})
+        if parts == ["authority"]:
+            return self._send_json(self.server.call(service.grant(
+                token, str(body.get("intent", "")), str(body.get("tier", "")), body.get("max_amount_minor"), body.get("days"), body.get("acknowledged"),
+            )))
+        if len(parts) == 3 and parts[0] == "authority" and NAME.match(parts[1]) and parts[2] == "activate":
+            return self._send_json(self.server.call(service.activate(token, parts[1])))
         if len(parts) == 3 and parts[0] == "authority" and NAME.match(parts[1]) and parts[2] == "revoke":
             return self._send_json(self.server.call(service.revoke(token, parts[1], str(body.get("reason", "")))))
         self._error("not_found", 404)

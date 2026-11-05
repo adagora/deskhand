@@ -91,6 +91,43 @@ class AuditLogReaderTests(unittest.TestCase):
         self.assertEqual(reader.for_correlation("")["calls"], [])
         self.assertEqual(reader.for_correlation("conv-2")["calls"], [])
 
+    def test_a_call_shows_what_the_console_would_show_and_links_to_it(self):
+        rows = [
+            {"kind": "llm-call", "id": "c1", "ts": "2026-11-05T10:00:00Z", "correlation": "conv-1", "model": "gpt-4o-mini", "upstreamStatus": 200, "latencyMs": 40,
+             "usage": {"input": 12, "output": 3}, "decision": {"action": "forward-redacted", "findings": [{"rule": "x"}, {"rule": "y"}]},
+             "toolCalls": [{"name": "calculate_refund", "argsHash": "h"}, {"name": "request_cancellation", "argsHash": "h"}]},
+        ]
+        self.log.write_text("\n".join(json.dumps(row) for row in rows) + "\n", encoding="utf-8")
+        reader = AuditLogReader(self.log, console_url="http://127.0.0.1:8793/#token=abc_DEF-123")
+        call = reader.for_correlation("conv-1")["calls"][0]
+        self.assertEqual((call["model"], call["tokens_in"], call["tokens_out"], call["findings"], call["action"]), ("gpt-4o-mini", 12, 3, 2, "forward-redacted"))
+        self.assertEqual(call["tools"], ["calculate_refund", "request_cancellation"])
+        self.assertEqual(call["link"], "http://127.0.0.1:8793/#/requests/c1?token=abc_DEF-123")
+        self.assertIsNone(AuditLogReader(self.log).for_correlation("conv-1")["calls"][0]["link"])
+        self.assertEqual(AuditLogReader(self.log, console_url="http://127.0.0.1:8793/").console_link("decisions/d"), "http://127.0.0.1:8793/#/decisions/d")
+
+    def test_conversations_group_calls_by_correlation_and_leave_out_the_known_ones(self):
+        rows = [
+            {"kind": "llm-call", "id": "a", "ts": "2026-11-05T10:00:00Z", "correlation": "conv-case", "model": "m", "upstreamStatus": 200},
+            {"kind": "llm-call", "id": "b", "ts": "2026-11-05T10:05:00Z", "correlation": "conv-q", "model": "m", "upstreamStatus": 200, "toolCalls": [{"name": "search_policies"}], "usage": {"input": 5, "output": 2}},
+            {"kind": "llm-call", "id": "c", "ts": "2026-11-05T10:06:00Z", "correlation": "conv-q", "model": "m", "upstreamStatus": 500, "decision": {"action": "block"}},
+            {"kind": "llm-call", "id": "d", "ts": "2026-11-05T09:00:00Z", "model": "m", "upstreamStatus": 200},
+            {"kind": "decision", "id": "x", "ts": "2026-11-05T10:07:00Z", "correlation": "conv-q"},
+        ]
+        self.log.write_text("\n".join(json.dumps(row) for row in rows) + "\n", encoding="utf-8")
+        listed = AuditLogReader(self.log).conversations({"conv-case"})
+        self.assertEqual([item["correlation"] for item in listed], ["conv-q", ""])
+        question = listed[0]
+        self.assertEqual((question["calls"], question["tools"], question["errors"], question["tokens_in"], question["actions"]), (2, ["search_policies"], 1, 5, ["block"]))
+        self.assertEqual(AuditLogReader(self.log).conversations({"conv-case", "conv-q", ""}), [])
+
+    def test_without_the_ai_audit_command_replay_and_receipts_are_refused(self):
+        reader = AuditLogReader(self.log)
+        for call in (lambda: reader.replay("d"), lambda: reader.receipt("d", "svg")):
+            with self.assertRaises(Exception) as seen:
+                call()
+            self.assertEqual(getattr(seen.exception, "code", ""), "audit_unavailable")
+
     def test_without_the_ai_audit_command_the_chain_is_unknown_not_ok(self):
         self.assertEqual(AuditLogReader(self.log).chain()["state"], "unknown")
         self.log.write_text("", encoding="utf-8")

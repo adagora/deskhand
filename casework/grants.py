@@ -107,6 +107,7 @@ class GrantBook:
                 (tenant,),
             ).fetchall()
         listed = []
+        activated_at = {row["intent"]: row["activated_at"] for row in rows if row["active_id"] and not row["revoked_at"]}
         for row in rows:
             if row["revoked_at"]:
                 state = "revoked"
@@ -114,6 +115,8 @@ class GrantBook:
                 state = "expired"
             elif row["active_id"]:
                 state = "active"
+            elif row["intent"] in activated_at and row["approved_at"] < activated_at[row["intent"]]:
+                state = "replaced"
             else:
                 state = "approved"
             listed.append(

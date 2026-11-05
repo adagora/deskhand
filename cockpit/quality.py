@@ -28,6 +28,27 @@ class EvalRuns:
         found.sort(key=lambda run: run["created_at"] or "", reverse=True)
         return found[:limit]
 
+    def run_detail(self, run: str) -> list[dict]:
+        path = self._inside(run, "report.json")
+        if path is None:
+            return []
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except ValueError:
+            return []
+        cases: dict[str, dict] = {}
+        for row in data.get("results", []):
+            entry = cases.setdefault(row["caseId"], {"case": row["caseId"], "intent": row.get("intent"), "trials": 0, "passed": 0, "failed_checks": {}})
+            entry["trials"] += 1
+            if row.get("status") == "pass":
+                entry["passed"] += 1
+            for check in row.get("checks") or []:
+                if check.get("status") != "pass":
+                    entry["failed_checks"].setdefault(check.get("id", "?"), str(check.get("reason", ""))[:200])
+            if row.get("error"):
+                entry["failed_checks"].setdefault("error", str(row["error"])[:200])
+        return sorted(cases.values(), key=lambda entry: (entry["passed"] / entry["trials"], entry["case"]))
+
     def _summary(self, folder: Path, data: dict) -> dict:
         overall = (data.get("summary") or {}).get("overall") or {}
         by_case: dict[str, list[bool]] = {}
@@ -65,7 +86,12 @@ class EvalRuns:
         return {"state": state, "detail": f"{latest['passed_trials']} of {latest['trials']} trials passed in {latest['run']}."}
 
     def dashboard_path(self, run: str, name: str) -> Path | None:
-        if name not in DASHBOARD_FILES or "/" in run or "\\" in run or run in ("", ".", ".."):
+        if name not in DASHBOARD_FILES:
+            return None
+        return self._inside(run, name)
+
+    def _inside(self, run: str, name: str) -> Path | None:
+        if "/" in run or "\\" in run or run in ("", ".", ".."):
             return None
         path = (self.directory / run / name).resolve()
         if not path.is_file() or self.directory.resolve() not in path.parents:

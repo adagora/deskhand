@@ -53,6 +53,42 @@ class Stub:
     async def authority(self, token):
         return {"grants": []}
 
+    async def conversations(self, token):
+        await self.me(token)
+        return {"configured": True, "conversations": []}
+
+    async def rules(self, token):
+        await self.me(token)
+        return {"sections": [], "note": "defaults"}
+
+    async def staff_history(self, token):
+        await self.me(token)
+        return []
+
+    async def quality_run(self, token, run):
+        await self.me(token)
+        return {"run": run, "cases": []}
+
+    async def replay(self, token, case_id, decision):
+        await self.me(token)
+        self.calls.append(("replay", case_id, decision))
+        return {"reproduced": True}
+
+    async def receipt(self, token, case_id, decision, format):
+        await self.me(token)
+        self.calls.append(("receipt", case_id, decision, format))
+        return b"<svg></svg>", "image/svg+xml", "decision-abc.svg"
+
+    async def grant(self, token, intent, tier, max_amount_minor, days, acknowledged):
+        await self.me(token)
+        self.calls.append(("grant", intent, tier, max_amount_minor, days, acknowledged))
+        return {"grants": []}
+
+    async def activate(self, token, grant_id):
+        await self.me(token)
+        self.calls.append(("activate", grant_id))
+        return {"grants": []}
+
     async def quality(self, token):
         return {"configured": True, "runs": []}
 
@@ -162,6 +198,37 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(response.status, 404)
         response, body = self.json("GET", "/api/cases/a%20b", token="good")
         self.assertEqual(response.status, 404)
+
+    def test_the_new_screens_have_their_own_reads(self):
+        for path in ("/api/conversations", "/api/rules", "/api/staff", "/api/quality/run-1"):
+            response, body = self.json("GET", path, token="good")
+            self.assertEqual(response.status, 200, path)
+            self.assertIsInstance(body, dict, path)
+        response, _ = self.json("GET", "/api/quality/run%201", token="good")
+        self.assertEqual(response.status, 404)
+
+    def test_a_replay_and_a_receipt_name_the_case_and_the_decision(self):
+        self.stub.calls.clear()
+        response, body = self.json("POST", "/api/cases/abc/replay", token="good", body={"decision": "d1"})
+        self.assertEqual((response.status, body["reproduced"]), (200, True))
+        response, data = self.request("POST", "/api/cases/abc/receipt", token="good", body={"decision": "d1", "format": "svg"})
+        self.assertEqual(response.status, 200)
+        self.assertEqual(data, b"<svg></svg>")
+        self.assertEqual(response.getheader("Content-Type"), "image/svg+xml")
+        self.assertEqual(response.getheader("Content-Disposition"), 'attachment; filename="decision-abc.svg"')
+        self.assertIn("sandbox", response.getheader("Content-Security-Policy"))
+        self.assertEqual(self.stub.calls, [("replay", "abc", "d1"), ("receipt", "abc", "d1", "svg")])
+        response, body = self.json("POST", "/api/cases/abc/replay", token="good", body={"decision": "../x"})
+        self.assertEqual((response.status, body["code"]), (400, "decision_not_in_case"))
+        self.assertEqual(len(self.stub.calls), 2)
+
+    def test_a_grant_is_approved_and_activated_with_typed_values(self):
+        self.stub.calls.clear()
+        self.json("POST", "/api/authority", token="good", body={"intent": "citywheels.cancellation", "tier": "assist", "max_amount_minor": 50000, "days": 30, "acknowledged": False})
+        self.json("POST", "/api/authority/g1/activate", token="good", body={})
+        self.assertEqual(self.stub.calls, [("grant", "citywheels.cancellation", "assist", 50000, 30, False), ("activate", "g1")])
+        response, _ = self.json("POST", "/api/authority", body={"tier": "assist"})
+        self.assertEqual(response.status, 401)
 
     def test_the_session_cookie_is_only_for_evaluation_pages(self):
         response, _ = self.json("POST", "/api/session", body={"token": "good"})

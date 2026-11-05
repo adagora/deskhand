@@ -1,4 +1,6 @@
 import asyncio
+import inspect
+import json
 import urllib.request
 from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
@@ -9,18 +11,24 @@ from temporalio.api.taskqueue.v1 import TaskQueue
 from temporalio.api.workflowservice.v1 import DescribeTaskQueueRequest
 from temporalio.client import Client, WorkflowExecutionStatus
 
-from casework.messages import NEEDS_A_PERSON, explain, phase_label
-from casework.model import CaseRequest, CaseResult, Consent, Principal, Proposal, Refusal, Resolution, Review
+from casework.desk import Desk
+from casework.grants import TIERS
+from casework.messages import explain, phase_label
+from casework.model import CANCEL_REFUND, CaseRequest, CaseResult, Consent, Principal, Proposal, Refusal, Resolution, Review, Timing
+from casework.rule import current_release
+from citywheels.clock import shop_now
 from cockpit.evidence import AuditLogReader
 from cockpit.quality import EvalRuns
 from orchestration.gateway import TASK_QUEUE, Gateway
-from orchestration.home import Home
+from orchestration.home import INTENT, Home
 from orchestration.workflow import CancelRefund
 
 ROLES = {"operator", "reviewer", "deployer"}
 TRANSITIONAL = ("starting", "rechecking", "cancelling", "refunding", "reading-back")
 STUCK_AFTER = timedelta(minutes=10)
 CLOSED_BOOKINGS = 50
+MAX_GRANT_MINOR = 500_000
+POLICY_FILE = Path(__file__).resolve().parents[1] / "policies" / "refund.json"
 EXPIRING_SOON = timedelta(days=7)
 QUERY_TIMEOUT_S = 5
 ACTIVITY_LABELS = {
@@ -78,6 +86,7 @@ class CockpitService:
         self.evals = evals
         self.proxy_url = proxy_url
         self.now = now
+        self._requests: dict[str, CaseRequest] = {}
         self.gateway = Gateway(client, home.directory, task_queue, prefix)
 
     def principal(self, token: str, roles=ROLES) -> Principal:
@@ -104,8 +113,8 @@ class CockpitService:
 
         rows = list(await asyncio.gather(*(one(workflow) for workflow in listed)))
         closed = sorted((row for row in rows if row["status"] != "RUNNING"), key=lambda row: row["closed_at"] or "", reverse=True)[:CLOSED_BOOKINGS]
-        for row, booking in zip(closed, await asyncio.gather(*(self._booking_of(row["case_id"], principal) for row in closed))):
-            row["booking_id"] = booking
+        for row, request in zip(closed, await asyncio.gather(*(self._request_of(self._workflow_id(principal.tenant, row["case_id"])) for row in closed))):
+            row["booking_id"] = request.booking_id if request else None
         urgency = {"review": 0, "staff": 1, "stuck": 2, "customer": 3, None: 4}
         return sorted(rows, key=lambda row: (urgency.get(row["needs"], 4), row["started_at"] or ""))
 
@@ -204,8 +213,36 @@ class CockpitService:
         return {
             "grants": grants,
             "can_revoke": "reviewer" in principal.roles,
-            "tiers": ["shadow", "assist", "contain", "transact"],
+            "can_approve": "reviewer" in principal.roles,
+            "can_activate": "deployer" in principal.roles,
+            "tiers": list(TIERS),
+            "intents": [INTENT],
+            "release": current_release()[:12],
+            "max_amount_minor": MAX_GRANT_MINOR,
+            "qualified": False,
         }
+
+    async def grant(self, token: str, intent: str, tier: str, max_amount_minor, days, acknowledged) -> dict:
+        principal = self.principal(token, {"reviewer"})
+        if intent != INTENT or tier not in TIERS:
+            raise Refusal("invalid_grant")
+        if isinstance(max_amount_minor, bool) or not isinstance(max_amount_minor, int) or not 0 < max_amount_minor <= MAX_GRANT_MINOR:
+            raise Refusal("grant_limit_invalid")
+        if isinstance(days, bool) or not isinstance(days, int) or not 1 <= days <= 365:
+            raise Refusal("invalid_grant")
+        if tier == "transact" and acknowledged is not True:
+            raise Refusal("acknowledge_needed")
+        now = self.now()
+        self.home.grants.approve(
+            principal, intent=intent, tier=tier, actions=[CANCEL_REFUND], max_amount_minor=max_amount_minor, currency="EUR",
+            expires_at=(now + timedelta(days=days)).isoformat(), release=current_release(), now=now,
+        )
+        return await self.authority(token)
+
+    async def activate(self, token: str, grant_id: str) -> dict:
+        principal = self.principal(token, {"deployer"})
+        self.home.grants.activate(principal, grant_id, current_release(), self.now())
+        return await self.authority(token)
 
     async def revoke(self, token: str, grant_id: str, reason: str) -> dict:
         principal = self.principal(token, {"reviewer"})
@@ -213,6 +250,88 @@ class CockpitService:
             raise Refusal("invalid_grant")
         self.home.grants.revoke(principal, grant_id, reason.strip()[:300], self.now())
         return await self.authority(token)
+
+    async def conversations(self, token: str) -> dict:
+        principal = self.principal(token)
+        if self.audit is None:
+            return {"configured": False, "conversations": []}
+        known: set[str] = set()
+        async for workflow in self.client.list_workflows("WorkflowType = 'cancel-refund'"):
+            if workflow.id.startswith(self._prefix(principal.tenant)):
+                request = await self._request_of(workflow.id)
+                if request and request.correlation:
+                    known.add(request.correlation)
+        return {"configured": True, "conversations": self.audit.conversations(known)}
+
+    async def staff_history(self, token: str) -> list[dict]:
+        principal = self.principal(token)
+        return [
+            {
+                "case_id": item.case_id, "code": item.code, "explanation": explain(item.code), "owner": item.owner,
+                "opened_at": item.opened_at, "closed_by": item.closed_by, "closed_at": item.closed_at, "closed_how": item.closed_how,
+            }
+            for item in reversed(self.home.staff.items(principal.tenant, "closed"))
+        ]
+
+    async def replay(self, token: str, case_id: str, decision_id: str) -> dict:
+        principal = self.principal(token)
+        await self._own_decision(principal, case_id, decision_id)
+        return await asyncio.to_thread(self.audit.replay, decision_id)
+
+    async def receipt(self, token: str, case_id: str, decision_id: str, format: str) -> tuple[bytes, str, str]:
+        principal = self.principal(token)
+        await self._own_decision(principal, case_id, decision_id)
+        return await asyncio.to_thread(self.audit.receipt, decision_id, format)
+
+    async def _own_decision(self, principal: Principal, case_id: str, decision_id: str) -> None:
+        if self.audit is None:
+            raise Refusal("audit_unavailable")
+        request = await self._request_of(self._workflow_id(principal.tenant, case_id))
+        if request is None:
+            raise Refusal("case_not_accessible")
+        if decision_id not in {d["id"] for d in self.audit.for_correlation(request.correlation)["decisions"]}:
+            raise Refusal("decision_not_in_case")
+
+    async def rules(self, token: str) -> dict:
+        self.principal(token)
+        defaults = inspect.signature(Desk.__init__).parameters
+        auto, ttl, timing = defaults["auto_approve_minor"].default, defaults["quote_ttl"].default, Timing()
+        policy = json.loads(POLICY_FILE.read_text(encoding="utf-8")) if POLICY_FILE.exists() else {}
+        row = lambda label, value, note="": {"label": label, "value": value, "note": note}
+        sections = [
+            {"title": "Review", "rows": [
+                row("Review needed above", f"{auto / 100:.2f} EUR", "A refund above this needs a reviewer as well as the customer. A smaller one needs only the customer."),
+                row("Customer consent", "Always", "Nothing is written until the customer confirms the exact quote."),
+                row("Quote lifetime", _span(ttl.total_seconds()), "After this the quote expires and nothing is written."),
+            ]},
+            {"title": "Refund rule", "rows": [
+                row("Rule", policy.get("name", "unknown"), policy.get("thought", "")),
+                row("Release", current_release()[:12], "A grant is bound to this release. Changing the rule or the policy text makes grants unusable until a new one is activated."),
+                row("Shop clock", shop_now().isoformat(), "The time the refund rule reads. A request cannot change it."),
+            ]},
+            {"title": "Always goes to a person", "rows": [
+                row("Storm or other claim", "Staff decide", "The desk opens an exception before any quote."),
+                row("Not paid by card or voucher", "Staff decide", "The refund route is unknown."),
+                row("Booking not confirmed", "Refused", "Nothing is refunded for a cancelled, completed or running booking."),
+                row("Booking system does not answer", "Staff item", "No success is claimed."),
+            ]},
+            {"title": "Timing", "rows": [
+                row("Wait for the booking system", _span(timing.read_deadline_s), "Longest a read may take before the case goes to staff."),
+                row("Wait for the write path", _span(timing.write_deadline_s), "Longest a cancel or refund may keep retrying."),
+                row("One attempt", _span(timing.attempt_timeout_s), ""),
+                row("Retry pause", f"{_span(timing.first_retry_s)} growing to {_span(timing.max_retry_s)}", ""),
+            ]},
+            {"title": "Evidence", "rows": [
+                row("Audit log", "connected" if self.audit else "not connected", str(self.audit.log) if self.audit else "Start the cockpit with --audit-log."),
+                row("Evaluation runs", "connected" if self.evals else "not connected", str(self.evals.directory) if self.evals else "Start the cockpit with --evals-dir."),
+                row("Proxy", self.proxy_url or "not set", ""),
+            ]},
+        ]
+        return {"sections": sections, "note": "These are the defaults of this build. A worker started with other settings may differ."}
+
+    async def quality_run(self, token: str, run: str) -> dict:
+        self.principal(token)
+        return {"run": run, "cases": self.evals.run_detail(run) if self.evals else []}
 
     async def quality(self, token: str) -> dict:
         self.principal(token)
@@ -285,13 +404,17 @@ class CockpitService:
         up = await asyncio.to_thread(probe)
         return {"id": "proxy", "label": "ai-audit proxy", "state": "ok" if up else "bad", "detail": "Answering." if up else "The proxy did not answer. Model calls fail until it runs."}
 
-    async def _booking_of(self, case_id: str, principal: Principal) -> str | None:
-        handle = self.client.get_workflow_handle(self._workflow_id(principal.tenant, case_id))
+    async def _request_of(self, workflow_id: str) -> CaseRequest | None:
+        if workflow_id in self._requests:
+            return self._requests[workflow_id]
+        handle = self.client.get_workflow_handle(workflow_id)
         try:
             async for event in handle.fetch_history_events(page_size=1):
                 if event.WhichOneof("attributes") == "workflow_execution_started_event_attributes":
                     request = await _decode(self.client.data_converter, event.workflow_execution_started_event_attributes.input, CaseRequest)
-                    return request.booking_id if request else None
+                    if request:
+                        self._requests[workflow_id] = request
+                    return request
                 break
         except Exception:
             return None
@@ -380,6 +503,15 @@ class CockpitService:
             elif kind in ("EVENT_TYPE_WORKFLOW_EXECUTION_FAILED", "EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED", "EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT"):
                 events.append({"at": when, "label": "Case ended abnormally", "detail": kind.removeprefix("EVENT_TYPE_WORKFLOW_EXECUTION_").lower(), "state": "bad"})
         return {"events": events, "request": request}
+
+
+def _span(seconds: float) -> str:
+    seconds = int(seconds)
+    for size, name in ((86400, "day"), (3600, "hour"), (60, "minute")):
+        if seconds >= size and seconds % size == 0:
+            count = seconds // size
+            return f"{count} {name}{'' if count == 1 else 's'}"
+    return f"{seconds} seconds"
 
 
 def _money(proposal: dict) -> str:
