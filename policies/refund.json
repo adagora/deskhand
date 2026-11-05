@@ -1,0 +1,42 @@
+{
+  "format": "qdl-intent",
+  "version": 1,
+  "name": "CityWheels cancellation refund v1",
+  "thought": "Rental refund is 100 % at 48 hours or more before the start, 50 % from 24 to under 48 hours, 0 % under 24 hours. The deposit always comes back for a cancellable booking; the booking fee never does. Only confirmed bookings can be cancelled. A claimed storm warning goes to the staff, who decide.",
+  "inputs": [
+    { "id": "rentalPrice", "name": "rentalPrice", "type": { "kind": "number", "unit": "EUR", "min": 0 } },
+    { "id": "bookingFee", "name": "bookingFee", "type": { "kind": "number", "unit": "EUR", "min": 0 } },
+    { "id": "deposit", "name": "deposit", "type": { "kind": "number", "unit": "EUR", "min": 0 } },
+    { "id": "hoursBefore", "name": "hoursBefore", "type": { "kind": "number", "unit": "h" } },
+    { "id": "cancellable", "name": "cancellable", "type": { "kind": "boolean" } },
+    { "id": "paidWithVoucher", "name": "paidWithVoucher", "type": { "kind": "boolean" } },
+    { "id": "stormWarning", "name": "stormWarning", "type": { "kind": "boolean" } },
+    { "id": "shareFull", "value": 1, "type": { "kind": "number", "unit": "one", "min": 0 } },
+    { "id": "shareHalf", "value": 0.5, "type": { "kind": "number", "unit": "one", "min": 0 } },
+    { "id": "shareNone", "value": 0, "type": { "kind": "number", "unit": "one", "min": 0 } },
+    { "id": "noEur", "value": 0, "type": { "kind": "number", "unit": "EUR", "min": 0 } },
+    { "id": "no", "value": false, "type": { "kind": "boolean" } }
+  ],
+  "steps": [
+    { "id": "atLeast48h", "op": "compare", "inputs": ["hoursBefore"], "params": { "operator": "gte", "value": 48 } },
+    { "id": "atLeast24h", "op": "compare", "inputs": ["hoursBefore"], "params": { "operator": "gte", "value": 24 } },
+    { "id": "lateShare", "op": "choose", "inputs": ["atLeast24h", "shareHalf", "shareNone"], "params": {} },
+    { "id": "timeShare", "op": "choose", "inputs": ["atLeast48h", "shareFull", "lateShare"], "params": {} },
+    { "id": "share", "op": "choose", "inputs": ["cancellable", "timeShare", "shareNone"], "params": {} },
+    { "id": "rentalRefund", "op": "arithmetic", "inputs": ["rentalPrice", "share"], "params": { "kind": "mul" } },
+    { "id": "depositRefund", "op": "choose", "inputs": ["cancellable", "deposit", "noEur"], "params": {} },
+    { "id": "total", "op": "arithmetic", "inputs": ["rentalRefund", "depositRefund"], "params": { "kind": "add" } },
+    { "id": "bookingFeeKept", "op": "choose", "inputs": ["cancellable", "bookingFee", "noEur"], "params": {} },
+    { "id": "noStorm", "op": "compare", "inputs": ["stormWarning"], "params": { "operator": "eq", "value": false } },
+    { "id": "notCancellable", "op": "compare", "inputs": ["cancellable"], "params": { "operator": "eq", "value": false } },
+    { "id": "quoteNow", "op": "choose", "inputs": ["cancellable", "noStorm", "no"], "params": {} },
+    { "id": "viaCard", "op": "choose", "inputs": ["paidWithVoucher", "no", "quoteNow"], "params": {} },
+    { "id": "viaVoucher", "op": "choose", "inputs": ["paidWithVoucher", "quoteNow", "no"], "params": {} },
+    { "id": "staffCase", "op": "choose", "inputs": ["cancellable", "stormWarning", "no"], "params": {} },
+    { "id": "quoteToCard", "op": "action", "inputs": ["viaCard", "total"], "params": { "allowed": true, "action": "quote-refund-to-card" } },
+    { "id": "quoteAsVoucher", "op": "action", "inputs": ["viaVoucher", "total"], "params": { "allowed": true, "action": "quote-refund-as-voucher" } },
+    { "id": "routeToStaff", "op": "action", "inputs": ["staffCase", "total"], "params": { "allowed": true, "action": "route-to-staff" } },
+    { "id": "explainNoRefund", "op": "action", "inputs": ["notCancellable", "total"], "params": { "allowed": true, "action": "explain-no-refund" } }
+  ],
+  "outputs": ["share", "rentalRefund", "depositRefund", "bookingFeeKept", "total", "quoteToCard", "quoteAsVoucher", "routeToStaff", "explainNoRefund"]
+}

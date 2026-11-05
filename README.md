@@ -14,7 +14,7 @@ That prints:
 If you cancel booking CW-1002 now, you get 340 EUR back. That is 40 EUR of the rental price plus the 300 EUR deposit. The booking fee is not refunded. Refunded to the same card within 5 working days.
 ```
 
-Python 3.11 or newer. The standard library is the only dependency. There is no installer and no package on pip.
+Python 3.11 or newer. `citywheels` and `casework` use the standard library only. There is no installer and no package on pip. The separate `orchestration` package needs `temporalio`. See `docs/cancellation-refund.md`.
 
 `SOLUTION.md` is the longer write-up of the same tree.
 
@@ -53,7 +53,7 @@ python3 eval/run_eval.py
 
 CW-9999 was never booked, so the answer sends the customer to the staff. The Australia question does the same. Neither invents a fact from outside the shop files.
 
-The committed fake-model eval is 20 of 20. See `eval/results.md`.
+The committed fake-model eval is 23 of 23. See `eval/results.md`. The fake model is a script, so read the live results next to it. See `eval/results-live-openai.md` and `eval/results-live-gemini.md`.
 
 ## Design
 
@@ -79,7 +79,19 @@ An unknown booking, a question the policies do not cover, and an empty model rep
 
 Use this when you want the quote to be the same on every run, and when you want to see the tool round in one file.
 
-Do not use it as a booking system. It does not store a cancellation, charge a card, or call a weather service.
+`citywheels` prints a quote. It leaves the booking file unchanged, and it never charges a card.
+
+## Cancellation workflow
+
+`orchestration/` is a second program in this repository. It runs one cancellation and refund on Temporal, against a fake booking store and a fake ledger on disk. `casework/` holds its checks on the standard library. The amount comes from `refund_for_booking`, the same function the quote uses. The model only asks for a cancellation through `request_cancellation`, which changes nothing.
+
+```sh
+python3 -m venv .venv
+.venv/bin/pip install -r orchestration/requirements.txt
+.venv/bin/python -m orchestration demo
+```
+
+Use Python 3.13 for that package. `python3 -m unittest discover -s tests` stays the standard-library suite and does not import `temporalio`. Run notes are in `docs/cancellation-refund.md`, and the design and its known gaps are in `docs/architecture.md`.
 
 ## Installation
 
@@ -284,8 +296,9 @@ citywheels/agent.py        up to 6 rounds, no tools on the last round
 citywheels/tools.py
         |-- search_policies      data/policies/*.md
         |-- get_booking          data/bookings.json
-        +-- calculate_refund     citywheels/refunds.py
-                                 citywheels/schedule.py for a change
+        |-- calculate_refund     citywheels/refunds.py
+        |                        citywheels/schedule.py for a change
+        +-- request_cancellation names a write intent, changes nothing
 ```
 
 `search_policies` returns verbatim passages by keyword overlap. There are no embeddings. `get_booking` returns the stored fields or a not-found result. `calculate_refund` calls `refund_for_booking` at the fixed clock.
@@ -324,7 +337,11 @@ The models leave out prices, vouchers, storm wording, policy text, and the words
 python3 -m unittest discover -s tests
 python3 eval/run_eval.py
 python3 verify/check_desk.py
+.venv/bin/python -m unittest orchestration.tests.test_workflow
+.venv/bin/python -m unittest orchestration.tests.test_audit_link
 ```
+
+`test_workflow` needs `temporalio` and starts a local Temporal server. `test_audit_link` also needs a built ai-audit checkout and skips without it.
 
 File checks and the unit tests also run through [prek](https://github.com/j178/prek) 0.5.9, locally and in CI:
 
@@ -332,7 +349,7 @@ File checks and the unit tests also run through [prek](https://github.com/j178/p
 prek run --all-files
 ```
 
-`.github/workflows/ci.yml` runs that gate on Python 3.11, 3.12, 3.13, and 3.14. A second job runs the two TLC models and `verify/check_desk.py` on Java 21 with tla2tools 1.8.0.
+`.github/workflows/ci.yml` runs that gate on Python 3.11, 3.12, 3.13, and 3.14. A second job runs the two TLC models and `verify/check_desk.py` on Java 21 with tla2tools 1.8.0. A third job runs the workflow tests on Python 3.13.
 
 To run TLC yourself, from `verify/`:
 
@@ -381,9 +398,9 @@ The package uses syntax from 3.11. Use `python3.12` or newer if `python3 --versi
 
 The fake model is a script. It covers the eval questions and the same shapes, such as "cancel booking CW-..." and "what time do you open". Keyword overlap is the whole policy search. A hours question with none of those words can miss the summer line.
 
-`eval/results.md` is the fake-model score, 20 of 20. The live notes in `eval/holdout-live.md` are a short OpenAI run, not a pass of the full set.
+`eval/results.md` is the fake-model score, 23 of 23. `eval/results-live-openai.md` and `eval/results-live-gemini.md` are the same questions on hosted models. `eval/holdout-live.md` is an older, short run.
 
-The agent does not store a cancellation, charge a card, or fetch a weather report. A storm warning is a staff decision.
+`citywheels` does not store a cancellation, charge a card, or fetch a weather report. A storm warning is a staff decision. `orchestration` changes only its own fake backend. `docs/architecture.md` lists its known gaps.
 
 Opening hours in the fake model use June 2026 even when a test passes another `now` into `run_agent`. Refund math uses that argument.
 
@@ -405,7 +422,7 @@ The cancellation rule leaves it out. CW-1002 is 40 EUR of the rental plus the 30
 
 ### Does a cancel answer cancel the booking?
 
-No. The command quotes the refund. `data/bookings.json` stays as it was.
+No. `citywheels` quotes the refund and, on a clear request, returns a write intent. `data/bookings.json` stays as it was. Only `orchestration` changes a booking, in its own fake backend, after the customer confirms the exact quote.
 
 ### Which file should I read first?
 

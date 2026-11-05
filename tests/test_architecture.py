@@ -59,7 +59,46 @@ def _graph() -> dict[str, set[str]]:
     return graph
 
 
+def _sources(package: str) -> list[Path]:
+    return [path for path in (ROOT / package).glob("*.py")]
+
+
 class ArchitectureTests(unittest.TestCase):
+    def test_the_agent_does_not_know_about_casework_or_temporal(self):
+        for path in PACKAGE.glob("*.py"):
+            for module in _imports(path):
+                top = module.split(".")[0]
+                self.assertNotIn(top, {"casework", "orchestration", "temporalio"}, f"{path.name} imports {module}")
+
+    def test_casework_stays_on_the_standard_library_and_the_money_rule(self):
+        for path in _sources("casework"):
+            for module in _imports(path):
+                top = module.split(".")[0]
+                self.assertNotIn(top, {"temporalio", "orchestration"}, f"{path.name} imports {module}")
+
+    def test_casework_has_one_money_rule(self):
+        for path in _sources("casework"):
+            text = path.read_text(encoding="utf-8")
+            self.assertNotIn("timedelta(hours=48)", text, path.name)
+            self.assertNotIn("timedelta(hours=24)", text, path.name)
+        self.assertIn("refund_for_booking", (ROOT / "casework" / "rule.py").read_text(encoding="utf-8"))
+
+    def test_the_workflow_imports_only_temporal_and_the_pure_model(self):
+        allowed = {"asyncio", "datetime", "temporalio", "casework.model"}
+        path = ROOT / "orchestration" / "workflow.py"
+        for module in _imports(path):
+            self.assertTrue(
+                module in allowed or module.split(".")[0] in {"temporalio", "datetime", "asyncio"},
+                f"workflow.py imports {module}",
+            )
+
+    def test_the_workflow_reads_no_clock_of_its_own_and_sets_no_short_deadline(self):
+        text = (ROOT / "orchestration" / "workflow.py").read_text(encoding="utf-8")
+        gateway = (ROOT / "orchestration" / "gateway.py").read_text(encoding="utf-8")
+        self.assertNotIn("datetime.now", text)
+        self.assertNotIn("time.time", text)
+        self.assertNotIn("execution_timeout", gateway)
+
     def test_high_level_modules_do_not_touch_io(self):
         for name in HIGH_LEVEL:
             for module in _imports(PACKAGE / name):

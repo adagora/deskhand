@@ -34,6 +34,20 @@ jobs:
           prek-version: "0.5.9"
           sha256: "2fee13923018dd517c19dba032ddcae8010cadfb81bc47e742ad5e8981a3f126"
 
+  workflow:
+    name: workflow
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Install temporalio
+        run: pip install -r orchestration/requirements.txt
+      - name: Workflow tests on a local Temporal server
+        run: python -m unittest orchestration.tests.test_workflow orchestration.tests.test_audit_link
+
   verify:
     name: models
     runs-on: ubuntu-latest
