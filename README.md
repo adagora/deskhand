@@ -454,6 +454,8 @@ No. `--provider fake` is the default when no key is set. The unit tests and `eva
 
 ## Contributions
 
-This is a take-home sample. I am not accepting pull requests on it.
+I am not accepting pull requests yet. Bug notes are welcome. To check the tree, run `python3 -m unittest discover -s tests`, `python3 eval/run_eval.py`, and `python3 verify/check_desk.py`.
 
-Bug notes are still useful if you are reviewing the tree. The checks to re-run are `python3 -m unittest discover -s tests`, `python3 eval/run_eval.py`, and `python3 verify/check_desk.py`.
+## License
+
+[MIT](LICENSE). The bookings and the policy texts in `data/` are made-up sample data and fall under the same license.
